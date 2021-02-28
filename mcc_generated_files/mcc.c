@@ -73,8 +73,8 @@ void OSCILLATOR_Initialize(void)
 
 void PMD_Initialize(void)
 {
-    // CLKRMD CLKR enabled; SYSCMD SYSCLK disabled; FVRMD FVR enabled; IOCMD IOC disabled; NVMMD NVM enabled; 
-    PMD0 = 0x81;
+    // CLKRMD CLKR disabled; SYSCMD SYSCLK enabled; FVRMD FVR enabled; IOCMD IOC enabled; NVMMD NVM enabled; 
+    PMD0 = 0x02;
     // TMR0MD TMR0 enabled; TMR1MD TMR1 enabled; TMR4MD TMR4 enabled; TMR5MD TMR5 enabled; TMR2MD TMR2 enabled; TMR3MD TMR3 enabled; TMR6MD TMR6 enabled; 
     PMD1 = 0x00;
     // NCO1MD NCO1 disabled; 

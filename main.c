@@ -42,113 +42,7 @@
 */
 
 #include "mcc_generated_files/mcc.h"
-
-#define byte unsigned char
-
-
-
-// Map segments to ports, a = bit 0, b = bit 1, ...
-void output7Seg(byte segs)
-{
-    PORTC = 0xff; // Set all high
-    IO_RC0_TRIS = (segs & 0x01) == 0;
-    IO_RC1_TRIS = (segs & 0x02) == 0;
-    IO_RC2_TRIS = (segs & 0x04) == 0;
-    IO_RC3_TRIS = (segs & 0x08) == 0;
-    IO_RC4_TRIS = (segs & 0x10) == 0;
-    IO_RC5_TRIS = (segs & 0x20) == 0;
-    IO_RC6_TRIS = (segs & 0x40) == 0;
-    IO_RC7_TRIS = (segs & 0x80) == 0;
-}
-
-void selectDigit(int digit)
-{
-    PORTB = 0; // Set all low
-    TRISB = 0xff; // Set all to input first
-    IO_RA2_PORT = 0;
-    IO_RA2_TRIS = 1;
-    if(digit < 0)
-        return;
-    IO_RB4_TRIS = digit != 0;
-    IO_RB5_TRIS = digit != 1;
-    IO_RB6_TRIS = digit != 2;
-    IO_RB7_TRIS = digit != 3;
-    IO_RA2_TRIS = digit != 4;
-}
-
-const byte digitTable[] = {
-    0b00111111, //0
-    0b00000110, //1
-    0b01011011, //2
-    0b01001111, //3
-    0b01100110, //4
-    0b01101101, //5
-    0b01111101, //6
-    0b00000111, //7
-    0b01111111, //8
-    0b01101111, //9
-    0b01110111, //A
-    0b01111100, //b
-    0b00111001, //C
-    0b01011110, //d
-    0b01111001, //E
-    0b01110001, //F
-};
-
-byte digitTo7Seg(int digit)
-{
-    if(digit > 15 || digit < 0)
-        return 0x80; // dp
-    return digitTable[digit];
-}
-
-
-
- byte sevenSegData[] = {0,0,0,0};
- byte sevenSegDots = 0;
- byte digits[] = {0,0,0,0};
- int currentDigit = 0;
- bool button1_down = false, button2_down = false;
-
-void readButtonsStart()
-{
-    // Set weak pull ups on tristate for RC3,RC4
-    IO_RC3_WPU = 1;
-    IO_RC4_WPU = 1;
-}
-
-void readButtonsEnd()
-{
-    button1_down = !IO_RC3_PORT;
-    button2_down = !IO_RC4_PORT;
-    // Remove weak pull ups on tristate for RC3,RC4
-    IO_RC3_WPU = 0;
-    IO_RC4_WPU = 0;
-}
-
- 
- void runDisplayTick()
- {
-    if(currentDigit == 0)
-        readButtonsEnd();
-
-    selectDigit(-1); // Clear digit when changing
-    //output7Seg(digitTo7Seg( (i + d) & 0x0f));
-    if(currentDigit < 4)
-    {
-        output7Seg(sevenSegData[currentDigit]);
-    }
-    else 
-    {
-        output7Seg(sevenSegDots & 0x7); // only first 3 bits connected
-        readButtonsStart();
-    }
-    selectDigit(currentDigit);
-    
-    currentDigit ++;
-    if(currentDigit == 5)
-        currentDigit = 0;
- }
+#include "display.h"
  
 void interruptHandler(void){
     // add your TMR0 interrupt custom code
@@ -157,49 +51,83 @@ void interruptHandler(void){
     runDisplayTick();
 }
 
+const double _batVoltageCal = 4.785/4.81;
 
-void ReadBatteryVoltage()
+
+void readBatteryVoltage()
 {
     IO_RA4_TRIS = 1;
     IO_RA4_SetAnalogMode();
     
-    //////
     ADPCH = 0x04;  
-    __delay_ms(1);
-    
-    
-    // Conversion finished, return the result
+    //__delay_ms(1);
     
 //Setup ADC                        
-    ADCON0bits.FM = 1;      //right justify   
-    ADCON0bits.CS = 1;      //FRC Clock           
-    ADPCH = 0x04;           //RA0 is Analog channel            
-    TRISAbits.TRISA4 = 1;   //Set RA0 to input        
-    ANSELAbits.ANSA4 = 1; //Set RA0 to analog          
-    //ADCON0bits.ON = 1;      //Turn ADC On     
-    //__delay_ms(1);
-    ADCON0bits.GO = 1;     //Start conversion      
-    while (ADCON0bits.GO); //Wait for conversion done
-
-    /////
-    uint16_t adcResult = ((uint16_t)((ADRESH << 8) + ADRESL));
+    //ADCLK = 0xf;
+    //ADCON0bits.ON = 1;      //Turn ADC On
+    //ADCON0bits.FM = 1;      //right justify
+    ADPCH = 0x04;           //RA4 is Analog channel            
+    TRISAbits.TRISA4 = 1;   //Set RA4 to input        
+    ANSELAbits.ANSA4 = 1; //Set RA4 to analog          
+    __delay_ms(1);
     
-    uint16_t milliVolts = adcResult * 3; // real voltage is 3 times higher
+    uint32_t adcAvg = 0;
+    
+    const int readings = 256;
+    for(int i = 0; i < readings; i++)
+    {
+        ADCON0bits.GO = 1; //Start conversion      
+        while (ADCON0bits.GO) {} //Wait for conversion done
+
+        uint16_t adcResult = ((uint16_t)((ADRESH << 8) + ADRESL));
+        adcAvg += adcResult;
+    }
+    adcAvg *=3; // real voltage is 3 times higher
+    adcAvg /= readings;
+    
+    adcAvg = (uint32_t)(adcAvg * _batVoltageCal);
+    
+    uint16_t milliVolts = (uint16_t)adcAvg;
+    
+    // Round and make it 3 digits range
     milliVolts += 5;
     milliVolts /= 10;
+    
     for(int i = 3; i >= 0; i--)
     {
-        byte digit = (byte)(milliVolts % 10);
+        uint8_t digit = (uint8_t)(milliVolts % 10);
         milliVolts /= 10;
-        byte sevenSeg = digitTo7Seg(digit);
+        uint8_t sevenSeg = digitTo7Seg(digit);
         if(i == 1)
             sevenSeg |= 0x80; // Add decimal point
         if(i == 0 && digit == 0)
             sevenSeg = 0;
-        sevenSegData[i] = sevenSeg;
+        setSevenSegData(i, sevenSeg);
     }
+}
+
+void readOhms(void)
+{
+    // Turn of discharge mosfet
+    TRISAbits.TRISA4 = 0;   //Set RA4 to output
+    ANSELAbits.ANSA4 = 1; //Set RA4 to digital
+    IO_RA4_PORT = 0;
     
-    __delay_ms(200);
+    IO_RA1_PORT = 0; // turn on middle current-source
+    
+    ADPCH = 5; // Set adc channel to RA5
+    __delay_ms(1);
+    
+    while(true)
+    {
+        ADCON0bits.GO = 1; //Start conversion      
+        while (ADCON0bits.GO) {} //Wait for conversion done
+
+        uint16_t adcResult = ((uint16_t)((ADRESH << 8) + ADRESL));
+        displayHex(adcResult);
+        __delay_ms(10);
+    }
+
 }
 
 /*
@@ -213,8 +141,12 @@ void main(void)
     // Wait for fixed voltage reference
     while(!FVR_IsOutputReady());
 
+    //ADCC_GetSingleConversion(RA5);
+    
     TMR0_SetInterruptHandler(interruptHandler);
 
+    
+    
     // When using interrupts, you need to set the Global and Peripheral Interrupt Enable bits
     // Use the following macros to:
 
@@ -224,7 +156,7 @@ void main(void)
     // Enable the Peripheral Interrupts
     INTERRUPT_PeripheralInterruptEnable();
 
-        TMR0_StartTimer();
+    TMR0_StartTimer();
 
     // Disable the Global Interrupts
     //INTERRUPT_GlobalInterruptDisable();
@@ -253,24 +185,26 @@ void main(void)
         // Add your application code
     }*/
        
+    displayText('B', 'A', 'T' | 0x80, ' ');
+    __delay_ms(800);
         
+        //setSevenSegDots( (readButton1() ? 1 : 0) + (readButton2() ? 2 : 0));
+    for(int i=0; i < 10; i++)
+    {
+        readBatteryVoltage();
+        __delay_ms(150);
+    }
+        
+    /*clearDisplay();
+
     while(1)
     {
-        sevenSegDots = (button1_down ? 1 : 0) + (button2_down ? 2 : 0);
-        ReadBatteryVoltage();
-    }
-    /*while(1)
-    {
-        for(int a = 0; a < 16; a++)
-        {
-            sevenSegData[0] = digitTo7Seg(a);
-            sevenSegData[1] = digitTo7Seg( (a + 10) & 0x0f );
-            sevenSegData[2] = digitTo7Seg( a ^ 9 );
-            sevenSegData[3] = digitTo7Seg( a ^ 1 );
-            sevenSegDots = (button1_down ? 1 : 0) + (button2_down ? 2 : 0);
-            __delay_ms(400);
-        }
+        //setSevenSegDots( (readButton1() ? 1 : 0) + (readButton2() ? 2 : 0) + 4);
+        setSevenSegDots(1); // Used as power-on led
+        __delay_ms(50);
     }*/
+    
+    readOhms();
 }
 /**
  End of File
