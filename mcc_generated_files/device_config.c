@@ -55,7 +55,7 @@
 
 // CONFIG2
 #pragma config MCLRE = OFF    // Master Clear Enable bit->MCLR pin function is port defined function
-#pragma config PWRTS = PWRT_1    // Power-up Timer Enable bit->PWRT set at 1 ms
+#pragma config PWRTS = OFF    // Power-up Timer Enable bit->PWRT disabled
 #pragma config LPBOREN = OFF    // Low-Power BOR enable bit->ULPBOR disabled
 #pragma config BOREN = OFF    // Brown-out reset enable bits->Brown-out reset disabled
 #pragma config BORV = LO    // Brown-out Reset Voltage Selection->Brown-out Reset Voltage (VBOR) set to 2.45V

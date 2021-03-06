@@ -43,7 +43,9 @@
 
 #include "mcc_generated_files/mcc.h"
 #include "display.h"
- 
+
+#define readAdc() ((uint16_t)((ADRESH << 8) + ADRESL));
+
 void interruptHandler(void){
     // add your TMR0 interrupt custom code
     // or set custom function using TMR0_SetInterruptHandler()
@@ -56,20 +58,10 @@ const double _batVoltageCal = 4.785/4.81;
 
 void readBatteryVoltage()
 {
-    IO_RA4_TRIS = 1;
+    IO_RA4_SetDigitalInput();
     IO_RA4_SetAnalogMode();
-    
-    ADPCH = 0x04;  
-    //__delay_ms(1);
-    
-//Setup ADC                        
-    //ADCLK = 0xf;
-    //ADCON0bits.ON = 1;      //Turn ADC On
-    //ADCON0bits.FM = 1;      //right justify
-    ADPCH = 0x04;           //RA4 is Analog channel            
-    TRISAbits.TRISA4 = 1;   //Set RA4 to input        
-    ANSELAbits.ANSA4 = 1; //Set RA4 to analog          
-    __delay_ms(1);
+    ADPCH = 0x04;           //Set ADC input to RA4 pin
+    __delay_ms(1); // Wait for things to settle
     
     uint32_t adcAvg = 0;
     
@@ -79,7 +71,7 @@ void readBatteryVoltage()
         ADCON0bits.GO = 1; //Start conversion      
         while (ADCON0bits.GO) {} //Wait for conversion done
 
-        uint16_t adcResult = ((uint16_t)((ADRESH << 8) + ADRESL));
+        uint16_t adcResult = readAdc();//((uint16_t)((ADRESH << 8) + ADRESL));
         adcAvg += adcResult;
     }
     adcAvg *=3; // real voltage is 3 times higher
@@ -93,41 +85,88 @@ void readBatteryVoltage()
     milliVolts += 5;
     milliVolts /= 10;
     
-    for(int i = 3; i >= 0; i--)
-    {
-        uint8_t digit = (uint8_t)(milliVolts % 10);
-        milliVolts /= 10;
-        uint8_t sevenSeg = digitTo7Seg(digit);
-        if(i == 1)
-            sevenSeg |= 0x80; // Add decimal point
-        if(i == 0 && digit == 0)
-            sevenSeg = 0;
-        setSevenSegData(i, sevenSeg);
-    }
+    displayDecimal(milliVolts, 1);
 }
 
-void readOhms(void)
+void initMeasurements(void)
 {
-    // Turn of discharge mosfet
-    TRISAbits.TRISA4 = 0;   //Set RA4 to output
-    ANSELAbits.ANSA4 = 1; //Set RA4 to digital
-    IO_RA4_PORT = 0;
-    
-    IO_RA1_PORT = 0; // turn on middle current-source
-    
     ADPCH = 5; // Set adc channel to RA5
-    __delay_ms(1);
+
+    // Setup discharge mosfet pin
+    IO_RA4_SetDigitalMode();
+    IO_RA4_SetDigitalOutput();
+    IO_RA4_SetPushPull();
     
-    while(true)
+    IO_RA4_SetHigh();
+}
+
+// Takes [sampleCount] readings of adc in quick succession and returns summed value
+// Exits early with -1 if 0xfff is sampled
+int32_t multiSampleAdc(uint16_t sampleCount)
+{
+    int32_t sum = 0;
+    for(int i=0; i < sampleCount; i++)
     {
         ADCON0bits.GO = 1; //Start conversion      
         while (ADCON0bits.GO) {} //Wait for conversion done
 
-        uint16_t adcResult = ((uint16_t)((ADRESH << 8) + ADRESL));
-        displayHex(adcResult);
-        __delay_ms(10);
+        uint16_t adcResult = readAdc();
+        if(adcResult == 0xfff)
+        {
+            return -1;
+        }
+        sum += adcResult;
+    }
+    return sum;
+}
+
+int32_t takeOhmsMeasurement(void)
+{
+    IO_RA4_LAT = 0; // Turn off discharge mosfet
+    IO_RA1_LAT = 0; // turn on medium current-source
+
+    __delay_ms(1); // Wait for current to stabilise (could be an inductor)
+
+    int32_t sum = multiSampleAdc(64);
+    
+    if(sum < 0)
+    {
+        IO_RA1_LAT = 1; // turn off medium current-source
+        IO_RA4_LAT = 1; // Turn on discharge mosfet
+        return -1;
     }
 
+    IO_RA1_LAT = 1; // turn off medium current-source
+    __delay_ms(3);
+    IO_RA4_LAT = 1; // Turn on discharge mosfet
+    __delay_ms(1);
+
+    // 1 count on ADC =  0.0125 ohm
+    // 1.25x = 5x/4
+    sum *= 5; 
+    sum >>= 2+6;
+
+    return sum;
+}
+
+
+void readOhms(void)
+{
+    while(true)
+    {
+        int32_t val = takeOhmsMeasurement();
+        if(val < 0)
+        {
+            clearDisplay();
+            setSevenSegDots(1); // Used as power-on led
+            __delay_ms(50);
+            continue;
+        }
+
+        displayDecimal((int16_t)val, 1);
+
+        __delay_ms(50);
+    }
 }
 
 /*
@@ -189,12 +228,32 @@ void main(void)
     __delay_ms(800);
         
         //setSevenSegDots( (readButton1() ? 1 : 0) + (readButton2() ? 2 : 0));
+    
     for(int i=0; i < 10; i++)
     {
         readBatteryVoltage();
         __delay_ms(150);
     }
-        
+     
+       
+    /*while(true)
+    {
+    int16_t vals[] = { 0, 1, 12, 103, 5093 };
+
+    for(int j=0; j < 5; j++)
+    {
+        for (uint8_t dp = 0; dp <= 3; dp++)
+        {
+            displayDecimal(vals[j], dp);
+            __delay_ms(1000);
+            displayDecimal(-vals[j], dp);
+            __delay_ms(1000);
+        }
+    }
+    }*/
+    
+    
+    initMeasurements();
     /*clearDisplay();
 
     while(1)

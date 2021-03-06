@@ -1,1 +1,9 @@
 CLKRMD in PMD0 disabled (should it be?)
+
+Resistance with inductor support
+- Turn on current for a time (1ms is enough for 10mH)
+- Measure with adc X times in succession (maybe 16 times) and avg. 
+- Turn off current, don't turn on discharge mosfet, current should go down faster in reverse schottky diode.
+  3ms should be enough for 10mH
+- Turn on discharge mosfet for maybe 1ms in case someone connected a cap
+- Maybe repeat this a few times and avg?

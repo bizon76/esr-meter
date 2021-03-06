@@ -30,6 +30,8 @@ void selectDigit(int digit)
     IO_RA2_TRIS = digit != 4;
 }
 
+#define _7SEG_MINUS 0b01000000
+
 const uint8_t digitTable[] = {
     0b00111111, //0
     0b00000110, //1
@@ -126,20 +128,78 @@ uint8_t charToSevenSeg(char ch)
     return letterTable[x] | (ch & 0x80);
 }
 
-void displayText(char c1, char c2, char c3, char c4)
+void setSevenSegData(uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3)
 {
-    setSevenSegData(0, charToSevenSeg(c1));
-    setSevenSegData(1, charToSevenSeg(c2));
-    setSevenSegData(2, charToSevenSeg(c3));
-    setSevenSegData(3, charToSevenSeg(c4));
+    sevenSegData[0] = d0;
+    sevenSegData[1] = d1;
+    sevenSegData[2] = d2;
+    sevenSegData[3] = d3;
+}
+
+void displayText(char c0, char c1, char c2, char c3)
+{
+    setSevenSegData(
+            charToSevenSeg(c0),
+            charToSevenSeg(c1), 
+            charToSevenSeg(c2),
+            charToSevenSeg(c3));
 }
 
 void displayHex(uint16_t value)
 {
-    setSevenSegData(0, digitTo7Seg( (value >> 12) & 0xf));
-    setSevenSegData(1, digitTo7Seg( (value >> 8) & 0xf));
-    setSevenSegData(2, digitTo7Seg( (value >> 4) & 0xf));
-    setSevenSegData(3, digitTo7Seg( value & 0xf));
+    setSevenSegData(
+            digitTo7Seg( (value >> 12) & 0xf),
+            digitTo7Seg( (value >> 8) & 0xf),
+            digitTo7Seg( (value >> 4) & 0xf),
+            digitTo7Seg( value & 0xf));
+}
+
+// 0 <= value <= 9999
+// decimalPointPos from left to right, 0 = leftMost
+void displayDecimal(int16_t value, uint8_t decimalPointPos)
+{
+    sevenSegDots = 0;
+    bool positive = value >= 0;
+    if (!positive)
+        value = -value;
+
+    bool showMinus = !positive;
+
+    if (!positive && value > 999)
+    {
+        if (decimalPointPos > 2)
+        {
+            // Error negative overflow "- O.F."
+            setSevenSegData(_7SEG_MINUS, 0, digitTable[0] | 0x80, digitTable[0xf] | 0x80);
+            return;
+        }
+        decimalPointPos++;
+        value /= 10;
+    }
+
+    for (int i = 3; i >= 0; i--)
+    {
+        int digit = (int)(value % 10);
+        uint8_t sevenSeg = digitTo7Seg(digit);
+        if (i < decimalPointPos && value == 0)
+        {
+            if (showMinus)
+            {
+                sevenSeg = _7SEG_MINUS;
+                showMinus = false;
+            }
+            else
+                sevenSeg = 0;
+        }
+        if (i == decimalPointPos && i != 3)
+        {
+            if (showMinus && i == 0 && digit == 0)
+                sevenSeg = _7SEG_MINUS;
+            sevenSeg |= 0x80; // Add decimal point
+        }
+        sevenSegData[i] = sevenSeg;
+        value /= 10;
+    }
 }
 
 void clearDisplay(void)
@@ -149,7 +209,7 @@ void clearDisplay(void)
     sevenSegDots = 0;
 }
 
-void setSevenSegData(int pos, uint8_t data)
+void setSevenSegPos(int pos, uint8_t data)
 {
     sevenSegData[pos] = data;
 }

@@ -2659,7 +2659,7 @@
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.SettingKey" moduleName="System Module" registerAlias="CONFIG2" settingAlias="PWRTS"/>
-         <value>PWRT_1</value>
+         <value>OFF</value>
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="System Module" registerAlias="CONFIG3" settingAlias="WDTE" alias="OFF"/>
@@ -5627,7 +5627,7 @@
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.RegisterKey" moduleName="System Module" registerAlias="CONFIG2"/>
-         <value>5664</value>
+         <value>5670</value>
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.RegisterKey" moduleName="Pin Module" registerAlias="CCP4PPS"/>
@@ -6373,7 +6373,7 @@
       </entry>
       <entry>
          <file>mcc_generated_files\device_config.c</file>
-         <hash>94161d3b999acad813d3defb5a8e0e1d43024243b5d953bbf975540f9dc65a24</hash>
+         <hash>a17556758b8347a138d31f804f26bd0bf03b5c3a4c43002aba9563ab6823e3ae</hash>
       </entry>
       <entry>
          <file>mcc_generated_files\pin_manager.h</file>

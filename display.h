@@ -5,7 +5,9 @@
 extern "C" {
 #endif
 
-void setSevenSegData(int pos, uint8_t data);
+void setSevenSegData(uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3);
+    
+void setSevenSegPos(int pos, uint8_t data);
 
 void setSevenSegDots(uint8_t dots);
 
@@ -17,7 +19,9 @@ bool readButton1();
  
 bool readButton2();
 
-void displayText(char c1, char c2, char c3, char c4);
+void displayText(char c0, char c1, char c2, char c3);
+
+void displayDecimal(int16_t value, uint8_t decimalPointPos);
 
 void clearDisplay(void);
 
