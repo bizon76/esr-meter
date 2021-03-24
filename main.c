@@ -43,54 +43,43 @@
 
 #include "mcc_generated_files/mcc.h"
 #include "display.h"
+#include "esr.h"
+#include "adc.h"
+#include "resistance.h"
 
-#define readAdc() ((uint16_t)((ADRESH << 8) + ADRESL));
-
-void interruptHandler(void){
-    // add your TMR0 interrupt custom code
-    // or set custom function using TMR0_SetInterruptHandler()
-    
+void interruptHandler(void)
+{
     runDisplayTick();
 }
 
 const double _batVoltageCal = 4.785/4.81;
 
 
-void readBatteryVoltage()
+// Reads battery voltage in 10s of millivolts
+uint16_t readBatteryVoltage(double calibrationFactor)
 {
     IO_RA4_SetDigitalInput();
     IO_RA4_SetAnalogMode();
-    ADPCH = 0x04;           //Set ADC input to RA4 pin
+    ADPCH = 0x04;  // Set ADC input to RA4 pin
     __delay_ms(1); // Wait for things to settle
     
-    uint32_t adcAvg = 0;
+    int32_t adcAvg = multiSampleAdc(256);
     
-    const int readings = 256;
-    for(int i = 0; i < readings; i++)
-    {
-        ADCON0bits.GO = 1; //Start conversion      
-        while (ADCON0bits.GO) {} //Wait for conversion done
+    adcAvg *=3; // Compensate for 1/3 voltage divider
+    adcAvg = (uint32_t)(adcAvg * calibrationFactor) >> 8;
+    
+    uint16_t voltage = (uint16_t)adcAvg;
+    
+    // Round and make it 10s of mV
+    voltage += 5;
+    voltage /= 10;
 
-        uint16_t adcResult = readAdc();//((uint16_t)((ADRESH << 8) + ADRESL));
-        adcAvg += adcResult;
-    }
-    adcAvg *=3; // real voltage is 3 times higher
-    adcAvg /= readings;
-    
-    adcAvg = (uint32_t)(adcAvg * _batVoltageCal);
-    
-    uint16_t milliVolts = (uint16_t)adcAvg;
-    
-    // Round and make it 3 digits range
-    milliVolts += 5;
-    milliVolts /= 10;
-    
-    displayDecimal(milliVolts, 1);
+    return voltage;
 }
 
 void initMeasurements(void)
 {
-    ADPCH = 5; // Set adc channel to RA5
+    ADPCH = 5; // Set ADC channel to RA5
 
     // Setup discharge mosfet pin
     IO_RA4_SetDigitalMode();
@@ -100,74 +89,43 @@ void initMeasurements(void)
     IO_RA4_SetHigh();
 }
 
-// Takes [sampleCount] readings of adc in quick succession and returns summed value
-// Exits early with -1 if 0xfff is sampled
-int32_t multiSampleAdc(uint16_t sampleCount)
+
+void testSignal(void)
 {
-    int32_t sum = 0;
-    for(int i=0; i < sampleCount; i++)
-    {
-        ADCON0bits.GO = 1; //Start conversion      
-        while (ADCON0bits.GO) {} //Wait for conversion done
+    INTERRUPT_GlobalInterruptDisable();
 
-        uint16_t adcResult = readAdc();
-        if(adcResult == 0xfff)
-        {
-            return -1;
-        }
-        sum += adcResult;
-    }
-    return sum;
-}
-
-int32_t takeOhmsMeasurement(void)
-{
-    IO_RA4_LAT = 0; // Turn off discharge mosfet
-    IO_RA1_LAT = 0; // turn on medium current-source
-
-    __delay_ms(1); // Wait for current to stabilise (could be an inductor)
-
-    int32_t sum = multiSampleAdc(64);
-    
-    if(sum < 0)
-    {
-        IO_RA1_LAT = 1; // turn off medium current-source
-        IO_RA4_LAT = 1; // Turn on discharge mosfet
-        return -1;
-    }
-
-    IO_RA1_LAT = 1; // turn off medium current-source
-    __delay_ms(3);
-    IO_RA4_LAT = 1; // Turn on discharge mosfet
-    __delay_ms(1);
-
-    // 1 count on ADC =  0.0125 ohm
-    // 1.25x = 5x/4
-    sum *= 5; 
-    sum >>= 2+6;
-
-    return sum;
-}
-
-
-void readOhms(void)
-{
     while(true)
     {
-        int32_t val = takeOhmsMeasurement();
-        if(val < 0)
-        {
-            clearDisplay();
-            setSevenSegDots(1); // Used as power-on led
-            __delay_ms(50);
-            continue;
-        }
+        IO_RA4_LAT = 0;
+        IO_RA0_LAT = 0;
 
-        displayDecimal((int16_t)val, 1);
+        __delay_us(20);
 
-        __delay_ms(50);
+        IO_RA0_LAT = 1;
+        IO_RA4_LAT = 1;
+
+        __delay_us(180);
     }
 }
+
+int32_t lowOhmsRangeZeroOffset = 0, highOhmsRangeZeroOffset = 0;
+
+void ZeroMeter(void)
+{
+    int32_t lowZero = takeRawOhmsMeasurement(_LATA_LATA1_MASK, 1024);
+    int32_t highZero = takeRawOhmsMeasurement(_LATA_LATA0_MASK, 1024);
+
+    if(lowZero < 0 || highZero < 0)
+    {
+        lowOhmsRangeZeroOffset = 0;
+        highOhmsRangeZeroOffset = 0;
+        return;
+    }
+    // Add a bit of rounding (-0.25) to prevent some flipping between 0 and -1
+    lowOhmsRangeZeroOffset = (lowZero >> 2) - 64;
+    highOhmsRangeZeroOffset = (highZero >> 2) - 64;
+}
+
 
 /*
                          Main application
@@ -179,13 +137,9 @@ void main(void)
     
     // Wait for fixed voltage reference
     while(!FVR_IsOutputReady());
-
-    //ADCC_GetSingleConversion(RA5);
     
     TMR0_SetInterruptHandler(interruptHandler);
 
-    
-    
     // When using interrupts, you need to set the Global and Peripheral Interrupt Enable bits
     // Use the following macros to:
 
@@ -197,61 +151,17 @@ void main(void)
 
     TMR0_StartTimer();
 
-    // Disable the Global Interrupts
-    //INTERRUPT_GlobalInterruptDisable();
-
-    // Disable the Peripheral Interrupts
-    //INTERRUPT_PeripheralInterruptDisable();
-
-    
-    /*while (1)
-    {
-        //IO_RC5_Toggle();
-        //LATC++;
-        for(int i=0; i < 16; i++)
-        {
-            for(int k = 0; k < 100; k++)
-            for(int d=0; d < 4; d++)
-            {
-                
-                selectDigit(-1); // Clear digit when changing
-                //output7Seg(digitTo7Seg( (i + d) & 0x0f));
-                output7Seg(sevenSegData[d]);
-                selectDigit(d);
-                __delay_us(400);
-            }
-        }
-        // Add your application code
-    }*/
-       
     displayText('B', 'A', 'T' | 0x80, ' ');
     __delay_ms(800);
         
         //setSevenSegDots( (readButton1() ? 1 : 0) + (readButton2() ? 2 : 0));
     
-    for(int i=0; i < 10; i++)
+    for(int i=0; i < 12; i++)
     {
-        readBatteryVoltage();
+        displayDecimal(readBatteryVoltage(_batVoltageCal), 1);
         __delay_ms(150);
     }
      
-       
-    /*while(true)
-    {
-    int16_t vals[] = { 0, 1, 12, 103, 5093 };
-
-    for(int j=0; j < 5; j++)
-    {
-        for (uint8_t dp = 0; dp <= 3; dp++)
-        {
-            displayDecimal(vals[j], dp);
-            __delay_ms(1000);
-            displayDecimal(-vals[j], dp);
-            __delay_ms(1000);
-        }
-    }
-    }*/
-    
     
     initMeasurements();
     /*clearDisplay();
@@ -263,7 +173,61 @@ void main(void)
         __delay_ms(50);
     }*/
     
-    readOhms();
+    
+    int mode = 0;
+    // Main loop
+    while(true)
+    {
+        //break;
+        if(readRightButton())
+        {
+            displayText('Z', 'E', 'R', 'O' | 0x80);
+            while(readRightButton());
+            
+            __delay_ms(500);
+            
+            ZeroMeter();
+        }
+        
+        if(readLeftButton())
+        {
+            // Go to next mode
+            mode++;
+            if(mode == 3)
+                mode = 0;
+            
+            switch(mode)
+            {
+                case 0: 
+                    displayText('E', 'S', 'R' | 0x80 , 0);
+                    break;
+                case 1:
+                    displayText('R', 'E', 'S' | 0x80 , 0);
+                    break;
+                case 2:
+                    displayText('C', 'A', 'P' | 0x80 , 0);
+                    break;
+            }
+
+
+            while(readLeftButton());
+            __delay_ms(300);
+            
+            // Delay while checking button
+            for(int i=0; i < 700; i++)
+            {    
+                if(readLeftButton())
+                    break;
+                __delay_ms(1);
+            }
+        }
+        
+        readOhms(lowOhmsRangeZeroOffset, highOhmsRangeZeroOffset);
+    }
+    
+    //readEsr();
+    //testSignal();
+    
 }
 /**
  End of File

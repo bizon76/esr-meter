@@ -12,7 +12,9 @@
             <asminc-extensions/>
             <sourceEncoding>UTF-8</sourceEncoding>
             <make-dep-projects/>
-            <sourceRootList/>
+            <sourceRootList>
+                <sourceRootElem>.</sourceRootElem>
+            </sourceRootList>
             <confList>
                 <confElem>
                     <name>default</name>
@@ -27,6 +29,8 @@
             <word>dp</word>
             <word>initialize</word>
             <word>mosfet</word>
+            <word>ms</word>
+            <word>xfff</word>
         </spellchecker-wordlist>
     </configuration>
 </project>

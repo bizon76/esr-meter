@@ -15,9 +15,9 @@ void runDisplayTick(void);
 
 uint8_t digitTo7Seg(int digit);
 
-bool readButton1();
- 
-bool readButton2();
+bool anyButton(void);
+bool readLeftButton(void);
+bool readRightButton(void);
 
 void displayText(char c0, char c1, char c2, char c3);
 

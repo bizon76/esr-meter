@@ -5,14 +5,15 @@
 void output7Seg(uint8_t segs)
 {
     PORTC = 0xff; // Set all high
-    IO_RC0_TRIS = (segs & 0x01) == 0;
+    TRISC = ~segs;
+    /*IO_RC0_TRIS = (segs & 0x01) == 0;
     IO_RC1_TRIS = (segs & 0x02) == 0;
     IO_RC2_TRIS = (segs & 0x04) == 0;
     IO_RC3_TRIS = (segs & 0x08) == 0;
     IO_RC4_TRIS = (segs & 0x10) == 0;
     IO_RC5_TRIS = (segs & 0x20) == 0;
     IO_RC6_TRIS = (segs & 0x40) == 0;
-    IO_RC7_TRIS = (segs & 0x80) == 0;
+    IO_RC7_TRIS = (segs & 0x80) == 0;*/
 }
 
 void selectDigit(int digit)
@@ -67,18 +68,18 @@ const uint8_t letterTable[] = {
     0b10000000, //L *
     0b10000000, //M *
     0b10000000, //N *
-    0b10000000, //O *
-    0b10000000, //P *
+    0b01011100, //O
+    0b01110011, //P
     0b10000000, //Q *
-    0b10000000, //R *
-    0b10000000, //S *
-    0b01111000, //T *
+    0b01010000, //R *
+    0b01101101, //S
+    0b01111000, //T
     0b10000000, //U *
     0b10000000, //V *
     0b10000000, //W *
     0b10000000, //X *
     0b10000000, //Y *
-    0b10000000, //Z *
+    0b01011011, //Z
 };
 
 uint8_t digitTo7Seg(int digit)
@@ -94,24 +95,29 @@ uint8_t digitTo7Seg(int digit)
  int currentDigit = 0;
  bool button1_down = false, button2_down = false;
 
- bool readButton1()
+ bool readLeftButton(void)
  {
      return button1_down;
  }
  
- bool readButton2()
+ bool readRightButton(void)
  {
      return button2_down;
  }
  
-void readButtonsStart()
+ bool anyButton(void)
+ {
+     return button1_down || button2_down;
+ }
+ 
+void readButtonsStart(void)
 {
     // Set weak pull ups on tristate for RC3,RC4
     IO_RC3_WPU = 1;
     IO_RC4_WPU = 1;
 }
 
-void readButtonsEnd()
+void readButtonsEnd(void)
 {
     button1_down = !IO_RC3_PORT;
     button2_down = !IO_RC4_PORT;
@@ -138,6 +144,7 @@ void setSevenSegData(uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3)
 
 void displayText(char c0, char c1, char c2, char c3)
 {
+    sevenSegDots = 0;
     setSevenSegData(
             charToSevenSeg(c0),
             charToSevenSeg(c1), 
@@ -225,7 +232,6 @@ void setSevenSegDots(uint8_t dots)
         readButtonsEnd();
 
     selectDigit(-1); // Clear digit when changing
-    //output7Seg(digitTo7Seg( (i + d) & 0x0f));
     if(currentDigit < 4)
     {
         output7Seg(sevenSegData[currentDigit]);
