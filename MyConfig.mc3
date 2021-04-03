@@ -1,12 +1,12 @@
 <config configVersion="1.1" device="PIC16F18446" coreVersion="5.0.2">
    <usedClasses class="java.util.HashMap">
       <entry>
-         <string>TMR0</string>
-         <string>class com.microchip.mcc.mcu8.modules.tmr0_mid0.TMR0</string>
-      </entry>
-      <entry>
          <string>System Module</string>
          <string>class com.microchip.mcc.mcu8.systemManager.SystemManager</string>
+      </entry>
+      <entry>
+         <string>TMR0</string>
+         <string>class com.microchip.mcc.mcu8.modules.tmr0_mid0.TMR0</string>
       </entry>
       <entry>
          <string>FVR</string>
@@ -818,7 +818,7 @@
          <value>disabled</value>
       </entry>
       <entry>
-         <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Pin Module" name="T1GPPS%aux3"/>
+         <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Pin Module" name="T1GPPS%aux2"/>
          <value>%DESELECT%</value>
       </entry>
       <entry>
@@ -1107,7 +1107,7 @@
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.RegisterKey" moduleName="TMR1" registerAlias="TCON"/>
-         <value>7</value>
+         <value>6</value>
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="Pin Module" registerAlias="IOCAP" settingAlias="IOCAP2" alias="disabled"/>
@@ -1314,12 +1314,12 @@
          <value>1</value>
       </entry>
       <entry>
-         <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="TMR0" registerAlias="T0CON1" settingAlias="T0CKPS" alias="1:1024"/>
-         <value>10</value>
-      </entry>
-      <entry>
          <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="TMR1" registerAlias="TGATE" settingAlias="TGSS" alias="CMP2OUT"/>
          <value>17</value>
+      </entry>
+      <entry>
+         <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="TMR0" registerAlias="T0CON1" settingAlias="T0CKPS" alias="1:1024"/>
+         <value>10</value>
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.SettingKey" moduleName="ADCC" registerAlias="ADACCL" settingAlias="ADACCL"/>
@@ -2811,7 +2811,7 @@
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.SettingKey" moduleName="TMR1" registerAlias="TCON" settingAlias="TMRON"/>
-         <value>enabled</value>
+         <value>disabled</value>
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="Pin Module" registerAlias="LATC" settingAlias="LATC3" alias="set"/>
@@ -4510,12 +4510,12 @@
          <value>32000000</value>
       </entry>
       <entry>
-         <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Pin Module" name="T1CKIPPS%aux2"/>
-         <value>%DESELECT%</value>
-      </entry>
-      <entry>
          <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="System Module" registerAlias="CONFIG4" settingAlias="BBSIZE" alias="BB4K"/>
          <value>4</value>
+      </entry>
+      <entry>
+         <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Pin Module" name="T1CKIPPS%aux1"/>
+         <value>%DESELECT%</value>
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.OptionKey" moduleName="TMR1" registerAlias="TCLK" settingAlias="TMRCS" alias="CLC1OUT"/>
@@ -6183,7 +6183,7 @@
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="TMR1" name="timerstart"/>
-         <value>enabled</value>
+         <value>disabled</value>
       </entry>
       <entry>
          <key class="com.microchip.mcc.core.tokenManager.RegisterKey" moduleName="Pin Module" registerAlias="SSP2SSPPS"/>
@@ -6750,7 +6750,7 @@
          <value>0</value>
       </entry>
       <entry>
-         <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Pin Module" name="T0CKIPPS%aux1"/>
+         <key class="com.microchip.mcc.core.tokenManager.CustomKey" moduleName="Pin Module" name="T0CKIPPS%aux3"/>
          <value>%DESELECT%</value>
       </entry>
       <entry>
@@ -6772,16 +6772,16 @@
    </tokenMap>
    <generatedFileHashHistoryMap class="java.util.HashMap">
       <entry>
-         <file>mcc_generated_files\interrupt_manager.h</file>
-         <hash>f69a485a7fca64650c3f346f7a4c529e99587772743ee3e351935ef3cd19e948</hash>
-      </entry>
-      <entry>
          <file>mcc_generated_files\mcc.h</file>
-         <hash>e8b8997f4107a652ae819b2da488f1a8b703c02612b385c226e6dba1a0a77d50</hash>
+         <hash>09ae950ba30d72178b7af3bab5f0b567b7a236da3a56eea3e379db39bc7ac57a</hash>
       </entry>
       <entry>
          <file>mcc_generated_files\device_config.h</file>
          <hash>9110f2b778f89fd1671cc5e34fd6d71d367e8e7b834ce79bde3436fdba4a23e9</hash>
+      </entry>
+      <entry>
+         <file>mcc_generated_files\interrupt_manager.h</file>
+         <hash>f69a485a7fca64650c3f346f7a4c529e99587772743ee3e351935ef3cd19e948</hash>
       </entry>
       <entry>
          <file>mcc_generated_files\tmr1.h</file>
@@ -6800,16 +6800,16 @@
          <hash>a17556758b8347a138d31f804f26bd0bf03b5c3a4c43002aba9563ab6823e3ae</hash>
       </entry>
       <entry>
-         <file>mcc_generated_files\pin_manager.h</file>
-         <hash>00b6d79edf4102d0581c4ba9c8ca60b711be9dfbbf1d496acb3cd872f4cc0e8e</hash>
-      </entry>
-      <entry>
          <file>mcc_generated_files\adcc.h</file>
          <hash>f98535563fe00cd5c7d747f281c9b974404dcdc338d9b605a048eb2a3f7d42cb</hash>
       </entry>
       <entry>
+         <file>mcc_generated_files\pin_manager.h</file>
+         <hash>00b6d79edf4102d0581c4ba9c8ca60b711be9dfbbf1d496acb3cd872f4cc0e8e</hash>
+      </entry>
+      <entry>
          <file>mcc_generated_files\tmr1.c</file>
-         <hash>a6413736ab13acda9d39f959c210cff2215919ee08c258a10c37906c911d0cfe</hash>
+         <hash>8f1f8ef83a1f05a0716d5152db4adca1205413dba06c078cf6488db994f2a209</hash>
       </entry>
       <entry>
          <file>mcc_generated_files\tmr0.c</file>
@@ -6820,24 +6820,24 @@
          <hash>e0af5674e89f5b1e18685939932a52b360011c0528c03e08ee740b0275c4b74d</hash>
       </entry>
       <entry>
-         <file>mcc_generated_files\fvr.h</file>
-         <hash>a91006ac739acc015cce7defc2633bf5545dad7fcde331fdb20a792377df64cc</hash>
-      </entry>
-      <entry>
          <file>mcc_generated_files\adcc.c</file>
          <hash>b06cbe9e09abe8c675bfda1c26ad1783f633e8569b86c1a4d361807001ba6bb6</hash>
+      </entry>
+      <entry>
+         <file>mcc_generated_files\fvr.h</file>
+         <hash>a91006ac739acc015cce7defc2633bf5545dad7fcde331fdb20a792377df64cc</hash>
       </entry>
       <entry>
          <file>mcc_generated_files\fvr.c</file>
          <hash>0ec5acf0652f756a167b793b6292832d3608964e76c841cebde492f1c7f208b8</hash>
       </entry>
       <entry>
-         <file>mcc_generated_files\interrupt_manager.c</file>
-         <hash>35af03e8e7e9635fe671ea33777c8c9c5dbf26317a82affe0b9b0e16eb4cb3df</hash>
-      </entry>
-      <entry>
          <file>mcc_generated_files\mcc.c</file>
          <hash>e24efaaf3970e232354be079fb1851adb296f5d0fbf9917f9e2cafbbb17282be</hash>
+      </entry>
+      <entry>
+         <file>mcc_generated_files\interrupt_manager.c</file>
+         <hash>35af03e8e7e9635fe671ea33777c8c9c5dbf26317a82affe0b9b0e16eb4cb3df</hash>
       </entry>
    </generatedFileHashHistoryMap>
    <mc3libFileHashHistoryMap class="java.util.HashMap"/>

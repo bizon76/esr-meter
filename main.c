@@ -44,8 +44,9 @@
 #include "mcc_generated_files/mcc.h"
 #include "display.h"
 #include "esr.h"
-#include "adc.h"
+#include "acquire.h"
 #include "resistance.h"
+#include "capacitance.h"
 
 void interruptHandler(void)
 {
@@ -108,24 +109,93 @@ void testSignal(void)
     }
 }
 
-int32_t lowOhmsRangeZeroOffset = 0, highOhmsRangeZeroOffset = 0;
+int32_t lowOhmsZeroOffset = 0, highOhmsZeroOffset = 0;
+int32_t lowEsrZeroOffset = 0, highEsrZeroOffset = 0;
 
 void ZeroMeter(void)
 {
-    int32_t lowZero = takeRawOhmsMeasurement(_LATA_LATA1_MASK, 1024);
-    int32_t highZero = takeRawOhmsMeasurement(_LATA_LATA0_MASK, 1024);
-
+    int32_t lowZero = takeRawOhmsMeasurement(_LATA_LATA0_MASK, 1024);
+    int32_t highZero = takeRawOhmsMeasurement(_LATA_LATA1_MASK, 1024);
+    
+    struct doubleSampleData lowEsrZero = fastDoubleSample(_LATA_LATA0_MASK, 256);
+    struct doubleSampleData highEsrZero = fastDoubleSample(_LATA_LATA1_MASK, 256);
+    
     if(lowZero < 0 || highZero < 0)
     {
-        lowOhmsRangeZeroOffset = 0;
-        highOhmsRangeZeroOffset = 0;
+        lowOhmsZeroOffset = 0;
+        highOhmsZeroOffset = 0;
+        lowEsrZeroOffset = 0;
+        highEsrZeroOffset = 0;
         return;
     }
     // Add a bit of rounding (-0.25) to prevent some flipping between 0 and -1
-    lowOhmsRangeZeroOffset = (lowZero >> 2) - 64;
-    highOhmsRangeZeroOffset = (highZero >> 2) - 64;
+    lowOhmsZeroOffset = (lowZero >> 2) - 64;
+    highOhmsZeroOffset = (highZero >> 2) - 64;
+    
+    lowEsrZeroOffset = (lowEsrZero.firstSum >> 1) - 32;
+    highEsrZeroOffset = (highEsrZero.firstSum >> 1) - 32;
 }
 
+
+void adcc()
+{
+    IO_RA4_LAT = 0; // Turn off discharge mosfet
+    LATA1 = 0; // turn on weak current-source
+
+    __delay_us(2);
+    
+    // Clear ACC, OV, CNT
+    ADCON2bits.ACLR = 1;
+    while(ADCON2bits.ACLR){};
+    
+    ADCON2bits.MD = 1; // Accumulate mode
+    
+    // Set upper threshold = 0xffe
+    ADUTHL = 0xfe;
+    ADUTHH = 0x0f;
+    // Setpoint = 0
+    ADSTPTH = 0x00;
+    ADSTPTL = 0x00;
+    
+    ADCON3bits.ADCALC = 1; // ERR = ADRES - ADSTPT = ADRES
+    ADCON3bits.ADTMD = 0b110; // Stop condition: Stop if ERR > UTH (upper threshold)
+    ADCON3bits.SOI = 1; // Set it to clear GO stop condition reached
+    
+    ADCON0bits.CONT = 1;
+        T1CONbits.T1RD16 = 1;
+    __asm("MOVLB 0x4");
+    __asm("BCF T1CON, 0x0");
+    TMR1H = 0;
+    TMR1L = 0;
+    ADCNT = 128-4;
+    ADCON0bits.GO = 1; 
+    __asm("MOVLB 0x4");
+    __asm("BSF T1CON, 0x0");
+
+    while((int8_t)ADCNT >= 0 && ADCON0bits.GO){} // Wait for conversion counter to reach 128
+    __asm("MOVLB 0x4");
+    __asm("BCF T1CON, 0x0");
+    
+    ADCON0bits.GO = 0; 
+    
+    uint16_t err = ((uint16_t)ADERRH << 8) | ADERRL;
+    
+    if(ADSTATbits.UTHR) // Was greater than upper threshold ?
+        displayHex((ADACCU <<8) | ADACCH );
+    uint8_t lo = TMR1L;
+    uint16_t tim = lo + (TMR1H<<8);
+    displayHex(tim);
+    displayHex(TMR1_ReadTimer());
+
+
+    LATA1 = 1; // turn off weak current-source
+
+    // 1 -> 3d
+    // 2 -> 75
+    // 3 -> ad
+    // 4 -> e5
+    // 0x38 (56) cycles per conversion, 7us
+}
 
 /*
                          Main application
@@ -178,7 +248,7 @@ void main(void)
     // Main loop
     while(true)
     {
-        //break;
+        break;
         if(readRightButton())
         {
             displayText('Z', 'E', 'R', 'O' | 0x80);
@@ -222,12 +292,48 @@ void main(void)
             }
         }
         
-        readOhms(lowOhmsRangeZeroOffset, highOhmsRangeZeroOffset);
+        switch(mode)
+        {
+            case 0: 
+                readEsr(lowEsrZeroOffset, highEsrZeroOffset);
+                break;
+                
+            case 1: 
+                readOhms(lowOhmsZeroOffset, highOhmsZeroOffset);
+                break;
+                
+            case 2:
+                measureCapacitance();
+                break;
+        }
     }
     
     //readEsr();
     //testSignal();
+    //burstSampleSum(4);
+    //doubleBurstSample(0, 0);
+        INTERRUPT_GlobalInterruptDisable();
+
     
+    __asm("MOVLB 0x4");
+    __asm("BCF T1CON, 0x0");
+    TMR1H = 0;
+    TMR1L = 0;
+    __asm("MOVLB 0x4");
+    __asm("BSF T1CON, 0x0");
+    ADCON2bits.ACLR = 1;
+    __asm("MOVLB 0x4");
+    while(ADCON2bits.ACLR){};
+    __asm("BCF T1CON, 0x0");
+    
+   uint16_t tim = TMR1L + (TMR1H<<8);
+   displayHex(TMR1_ReadTimer());
+
+
+    
+    adcc();
+    INTERRUPT_GlobalInterruptEnable();
+    while(true) {};
 }
 /**
  End of File

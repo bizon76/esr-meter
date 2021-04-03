@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-void readEsr(void);
+void readEsr(int32_t lowOhmsRangeZeroOffset, int32_t highOhmsRangeZeroOffset);
 
 #ifdef	__cplusplus
 }

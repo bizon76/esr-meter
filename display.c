@@ -166,6 +166,7 @@ void displayHex(uint16_t value)
 void displayDecimal(int16_t value, uint8_t decimalPointPos)
 {
     sevenSegDots = 0;
+
     bool positive = value >= 0;
     if (!positive)
         value = -value;
@@ -182,6 +183,17 @@ void displayDecimal(int16_t value, uint8_t decimalPointPos)
         }
         decimalPointPos++;
         value /= 10;
+    } 
+    else if(positive && value > 9999)
+    {
+        if(decimalPointPos > 2)
+        {
+            // Error positive overflow "  O.F."
+            setSevenSegData(0, 0, digitTable[0] | 0x80, digitTable[0xf] | 0x80);
+            return;
+        }
+        value /= 10;
+        decimalPointPos++;
     }
 
     for (int i = 3; i >= 0; i--)

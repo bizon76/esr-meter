@@ -1,6 +1,6 @@
 #include "mcc_generated_files/mcc.h"
 #include "resistance.h"
-#include "adc.h"
+#include "acquire.h"
 #include "display.h"
 
 // Measure ohms, uses "long" pulses to allow some inductance
@@ -32,7 +32,7 @@ void readOhms(int32_t lowOhmsRangeZeroOffset, int32_t highOhmsRangeZeroOffset)
 {
     while(true)
     {
-        bool lowOhmsRange = true;
+        bool lowOhmsRange = false;
 
         while(true)
         {
@@ -42,16 +42,7 @@ void readOhms(int32_t lowOhmsRangeZeroOffset, int32_t highOhmsRangeZeroOffset)
             uint8_t pinMask, pointPos;
             // float calMultiplier;
 
-            if (lowOhmsRange)
-            {
-                pinMask = _LATA_LATA1_MASK;
-                pointPos = 1;
-            }
-            else
-            {
-                pinMask = _LATA_LATA0_MASK;
-                pointPos = 0;
-            }
+            pinMask = lowOhmsRange ? _LATA_LATA0_MASK : _LATA_LATA1_MASK;
 
             int32_t val = takeRawOhmsMeasurement(pinMask, 256);
             if(val < 0)
@@ -61,34 +52,29 @@ void readOhms(int32_t lowOhmsRangeZeroOffset, int32_t highOhmsRangeZeroOffset)
                 break;
             }
             
-            if(lowOhmsRange && val < (185 << 8)) // Go to higher current range when below about 4.5% of this range
+            if(!lowOhmsRange && val < ((uint32_t)185 << 8)) // Go to lowOhms range if reading is below about 4.5% of highOhmsRange
             {
-                lowOhmsRange = false;
+                lowOhmsRange = true;
                 continue;
             }
 
             if(lowOhmsRange)
             {
+                pointPos = 0;
                 val -= lowOhmsRangeZeroOffset;
-                
-                // 1 count on ADC = 0.25 ohm
-                // 2.5x = 5x/2
-                val *= 5;
-                val >>= 1+8;
-            }
-            else
-            {
-                val -= highOhmsRangeZeroOffset;
                 // 1 count on ADC =  0.0125 ohm
                 // 1.25x = 5x/4
                 val *= 5; 
                 val >>= 2+8;
             }
-            
-            if(val >= 10000)
+            else
             {
-                val /= 10;
-                pointPos++;
+                pointPos = 1;
+                val -= highOhmsRangeZeroOffset;
+                // 1 count on ADC = 0.25 ohm
+                // 2.5x = 5x/2
+                val *= 5;
+                val >>= 1+8;
             }
             
             displayDecimal((int16_t)val, pointPos);
