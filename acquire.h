@@ -20,14 +20,19 @@ struct doubleSampleData
     int32_t startOffsetSum;
     int32_t firstSum;
     int32_t secondSum;
-    int32_t cyclesSum;
+    uint16_t instructionsDelta;
     bool overRange;
 };
 
+void initAdc(void);
 int32_t multiSampleAdc(uint16_t sampleCount);
+int32_t multiSampleAdc2(uint16_t sampleCount);
+
 struct doubleSampleData fastDoubleSample(uint8_t currentSourcePinMask, uint16_t sampleCount);
 struct doubleSampleData doubleBurstSample(uint8_t currentSourcePinMask, uint8_t burstLength);
 bool burstSampleSum(uint8_t burstLength, int24_t* aggregate);
+struct doubleSampleData sampleSlope(uint8_t burstLength, uint8_t currentSourcePinMask);
+
 #ifdef	__cplusplus
 }
 #endif

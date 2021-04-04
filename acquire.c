@@ -8,19 +8,62 @@
 #define stopTimer()      __asm("MOVLB 0x4 \n BCF T1CON, 0x0");
 #define waitForTimerOverFlow() __asm("MOVLB 0xE \n BTFSS PIR4, 0x0 \n GOTO $-1");
 
+struct doubleSampleData sampleResult;
 
-void initAdc()
+
+void initAdc(void)
 {
     ADCON2bits.MD = 1; // Accumulate mode
     
     ADCC_DefineSetPoint(0);
-    ADCC_SetUpperThreshold(0xffe);
+    ADCC_SetUpperThreshold(0xfff);
             
-    ADCON3bits.ADCALC = 1; // ERR = ADRES - ADSTPT = ADRES - 0 = ADRES
-    ADCON3bits.ADTMD = 0b110; // ERR > UTH (upper threshold)
-    ADCON3bits.SOI = 1; // Clear GO if error threshold reached
+    ADCON3bits.ADCALC = 1; // ERR = ADRES - ADSTPT = ADRES
+    //ADCON3bits.ADTMD = 0b110; // Stop condition: Stop if ERR > UTH (upper threshold)
+    //ADCON3bits.SOI = 1; // Set it to clear GO stop condition reached
     
     //Use if(ADSTATbits.UTHR) To check if conversion was greater than upper threshold
+}
+
+int32_t multiSampleAdc2(uint16_t sampleCount)
+{
+    int32_t sum = 0;
+    ADCON0bits.GO = 0; 
+    ADCON0bits.CONT = 0;
+    
+    //INTERRUPT_GlobalInterruptDisable();
+    for(int i=sampleCount; i > 0; i-=16)
+    {
+         // Clear ACC, OV, CNT
+        //ADCON2bits.ACLR = 1;
+        //while(ADCON2bits.ACLR){};
+        
+        ADACCU = 0; 
+        ADACCH = 0; 
+        ADACCL = 0;
+        
+        uint8_t repeat = i > 16 ? 16 : (uint8_t)i;
+        ADCNT = 128-1;//repeat;
+
+        for(uint8_t j=0; j < repeat; j++)
+        {
+            ADCON0bits.GO = 1; 
+
+            while(ADCON0bits.GO){}
+            if(ADSTATbits.UTHR) // Was there a 0xfff reading? 
+                return -1;
+
+        }
+        uint24_t adcSum =  ADCC_GetAccumulatorValue(); //
+        //ADCON0bits.GO = 0; 
+        
+        
+        
+        sum += adcSum;
+        
+    }
+    //INTERRUPT_GlobalInterruptEnable();
+    return sum;
 }
 
 // Takes [sampleCount] readings of ADC in quick succession and returns summed value
@@ -144,7 +187,7 @@ struct doubleSampleData fastDoubleSample(uint8_t currentSourcePinMask, uint16_t 
         
         res.startOffsetSum += startOffset;
         res.secondSum += second;
-        res.cyclesSum += (uint16_t)(TMR1H<<8) | TMR1L;
+        res.instructionsDelta = TMR1_ReadTimer();
 
         waitForDischarge();
     }
@@ -259,4 +302,95 @@ bool burstSampleSum(uint8_t burstLength, int24_t* aggregate)
             return false;
         *aggregate += sample;
     }
+}
+
+// Sample "burstLenght" times and put sum in firstSum
+// Then sample "burstLenght" times and put sum in secondSum
+// NOP instructions are for timing, each sample should be equally spaced with 58 instructions between
+struct doubleSampleData sampleSlope(uint8_t burstLength, uint8_t currentSourcePinMask)
+{
+    stopTimer();
+    TMR1H = 0;
+    TMR1L = 0;
+    burstLength --;
+    uint16_t sample;
+    struct doubleSampleData res = {0};
+    int24_t firstSum, secondSum;
+    IO_RA4_LAT = 0; // Turn off discharge mosfet
+    LATA &= ~currentSourcePinMask; // turn on current-source
+
+    INTERRUPT_GlobalInterruptDisable();
+    __delay_us(2);
+    ADCON0bits.GO = 1; //Start conversion
+    
+    //startTimer();
+    _nop(); _nop();
+    if(burstLength > 0)
+    {
+        uint8_t x = burstLength;
+        _nop();
+        while(true)
+        {
+            waitForAdcAndRestart();
+
+            sample = readAdc();
+            if(ADSTATbits.UTHR) // Was greater than upper threshold ?if(sample == 0x1fff)
+                goto overrange;
+            firstSum += sample;
+            _nop();
+            x--;
+            if(x == 0)
+                break;
+        }
+    }
+    _nop();
+    _nop();
+    waitForAdcAndRestart();
+    startTimer();
+    sample = readAdc();
+    if(ADSTATbits.UTHR) // Was greater than upper threshold ?if(sample == 0x0fff)
+        goto overrange;
+    firstSum += sample;
+
+    if(burstLength > 0)
+    {
+        uint8_t x = burstLength;
+        _nop();
+        while(true)
+        {
+            waitForAdcAndRestart();
+            sample = readAdc();
+            if(ADSTATbits.UTHR) // Was greater than upper threshold ?if(sample == 0x1fff)
+                goto overrange;
+            secondSum += sample;
+            _nop();
+            x--;
+            if(x == 0)
+                break;
+        }
+    }
+    _nop();
+    waitForAdc();
+    _nop();
+    stopTimer();
+    sample = readAdc();
+    if(ADSTATbits.UTHR) // Was greater than upper threshold ?if(sample == 0x0fff)
+        goto overrange;
+    secondSum += sample;
+
+    LATA |= currentSourcePinMask; // turn off current-source
+    IO_RA4_LAT = 1; // Turn on discharge mosfet    
+    INTERRUPT_GlobalInterruptEnable();
+    res.overRange = false;
+    res.firstSum = firstSum;
+    res.secondSum = secondSum;
+    res.instructionsDelta = TMR1_ReadTimer() - 2;
+    return res;
+overrange:
+    LATA |= currentSourcePinMask; // turn off current-source
+    IO_RA4_LAT = 1; // Turn on discharge mosfet    
+    stopTimer();
+    INTERRUPT_GlobalInterruptEnable();
+    res.overRange = true;
+    return res;
 }
