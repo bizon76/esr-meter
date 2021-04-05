@@ -64,7 +64,7 @@ uint16_t readBatteryVoltage(double calibrationFactor)
     ADPCH = 0x04;  // Set ADC input to RA4 pin
     __delay_ms(1); // Wait for things to settle
     
-    int32_t adcAvg = multiSampleAdc(256);
+    int32_t adcAvg = multiSampleAdc2(256);
     
     adcAvg *=3; // Compensate for 1/3 voltage divider
     adcAvg = (uint32_t)(adcAvg * calibrationFactor) >> 8;
@@ -224,12 +224,15 @@ void main(void)
     displayText('B', 'A', 'T' | 0x80, ' ');
     __delay_ms(800);
         
+    initAdc();
+    
+    
         //setSevenSegDots( (readButton1() ? 1 : 0) + (readButton2() ? 2 : 0));
     
     for(int i=0; i < 12; i++)
     {
         displayDecimal(readBatteryVoltage(_batVoltageCal), 1);
-        __delay_ms(150);
+        __delay_ms(155);
     }
      
     
@@ -248,7 +251,7 @@ void main(void)
     // Main loop
     while(true)
     {
-        break;
+        //break;
         if(readRightButton())
         {
             displayText('Z', 'E', 'R', 'O' | 0x80);
@@ -331,9 +334,34 @@ void main(void)
 
 
     
-    adcc();
+    //adcc();
+   
+   
+    /*while(true) 
+    {
+        for(int j=1; j <= 15; j++)
+        for(int i=0; i < 100; i++)
+        {
+        struct doubleSampleData data = sampleSlope(j*16, _LATA_LATA1_MASK);
+        displayHex(data.instructionsDelta & 0xfff | (j << 12));
+        __delay_ms(15);
+        }
+    }*/
+    uint16_t x = 0;
+    while(true)
+    {
+        for(int i=0; i < 1000; i++)
+        {
+            struct doubleSampleData data = sampleSlopeWithDelay(16, _LATA_LATA1_MASK, 60000);
+            //displayHex(data.instructionsDelta);
+        }
+        displayHex(-(uint16_t)60000);
+        x++;
+    }
+   
     INTERRUPT_GlobalInterruptEnable();
     while(true) {};
+    
 }
 /**
  End of File

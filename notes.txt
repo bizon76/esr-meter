@@ -25,6 +25,7 @@ The following takes equivalent time as 7 instructions
 
 * The timer keeps running after overflow has occurred
 
+* IMPORTANT:  ADACC-value is not stable while the ADC is running
 
     while(true) 
     {

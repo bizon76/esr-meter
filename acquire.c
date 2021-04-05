@@ -13,10 +13,10 @@ struct doubleSampleData sampleResult;
 
 void initAdc(void)
 {
-    ADCON2bits.MD = 1; // Accumulate mode
+    //ADCON2bits.MD = 1; // Accumulate mode
     
     ADCC_DefineSetPoint(0);
-    ADCC_SetUpperThreshold(0xfff);
+    ADCC_SetUpperThreshold(0xffe);
             
     ADCON3bits.ADCALC = 1; // ERR = ADRES - ADSTPT = ADRES
     //ADCON3bits.ADTMD = 0b110; // Stop condition: Stop if ERR > UTH (upper threshold)
@@ -111,6 +111,7 @@ void waitForDischarge(void)
 
         __delay_us(90);
     }
+    //displayHex(lastVal);
 }
 
 
@@ -239,7 +240,7 @@ struct doubleSampleData fastDoubleSample(uint8_t currentSourcePinMask, uint16_t 
 }*/
 
 
-struct doubleSampleData doubleBurstSample(uint8_t currentSourcePinMask, uint8_t burstLength)
+/*struct doubleSampleData doubleBurstSample(uint8_t currentSourcePinMask, uint8_t burstLength)
 {
     TMR1H = 0;
     TMR1L = 0;
@@ -272,41 +273,90 @@ struct doubleSampleData doubleBurstSample(uint8_t currentSourcePinMask, uint8_t 
 
     waitForDischarge();
     return res;
-}
+}*/
 
 // Samples many times in a row and sums the result. 
 // Does calculations while ADC is running to speed up process. 
 // Exits early with -1 if 0xfff is sampled
-bool burstSampleSum(uint8_t burstLength, int24_t* aggregate)
-{
-    // qwerty
-    ADCON0bits.GO = 1; //Start conversion
-    //int24_t aggregate = 0; // Declare and zero variable after conversion starts, faster...
-    while(true)
-    {
-        burstLength --;
-        if(burstLength == 0)
-        {
-            waitForAdc();
-            uint16_t sample = readAdc();
-            if(sample == 0x1fff)
-                return false;
-            *aggregate += sample;
-            return true;
-        }
-        _nop(); // Sync with AD
-        waitForAdcAndRestart();
 
-        uint16_t sample = readAdc();
-        if(sample == 0x1fff)
-            return false;
-        *aggregate += sample;
+int24_t burstSampleSum(uint8_t burstLength)
+{
+    ADCON0bits.GO = 1; //Start conversion
+    int24_t sum = 0;
+    uint16_t sample;
+    for(uint8_t x = burstLength-1; x > 0; x--)
+    {
+        waitForAdcAndRestart();
+        sample = readAdc();
+        if(ADSTATbits.UTHR) // Was greater than upper threshold
+            return -1;
+        sum += sample;
     }
+
+    waitForAdc();
+    sample = readAdc();
+    if(ADSTATbits.UTHR) // Was greater than upper threshold
+        return -1;
+    sum += sample;
+    return sum;
 }
+
+struct doubleSampleData sampleSlopeWithDelay(uint8_t burstLength, uint8_t currentSourcePinMask, uint16_t desiredDeltaInstructions)
+{
+    stopTimer();
+    uint16_t timerVal = -desiredDeltaInstructions;
+    TMR1H = (timerVal >> 8);
+    TMR1L = timerVal;    
+    
+    struct doubleSampleData res = {0};
+    INTERRUPT_GlobalInterruptDisable();
+    IO_RA4_LAT = 0; // Turn off discharge mosfet
+    LATA &= ~currentSourcePinMask; // turn on current-source
+    __delay_us(2);
+    startTimer();
+    res.firstSum = burstSampleSum(burstLength);
+    if(res.firstSum < 0)
+        goto overrange;
+    
+    if(TMR1_ReadTimer() < 0xff00) // Note: Found that original value of 0xff80 is too high
+    {
+        // More than 255 clock cycles left, we can enable interrupts so display doesn't start flickering
+        INTERRUPT_GlobalInterruptEnable();
+
+        while(TMR1_ReadTimer() < 0xff00) {}
+        // Run the last cycles with interrupts disabled for accurate timing
+        INTERRUPT_GlobalInterruptDisable();
+    }
+
+    waitForTimerOverFlow();
+    res.secondSum = burstSampleSum(burstLength);
+    PIR4bits.TMR1IF = 0; // Clear timer overflow
+    if(res.secondSum < 0)
+        goto overrange;
+    
+    res.instructionsDelta = desiredDeltaInstructions;
+
+    LATA |= currentSourcePinMask; // turn off current-source
+    IO_RA4_LAT = 1; // Turn on discharge mosfet    
+    INTERRUPT_GlobalInterruptEnable();
+    waitForDischarge();
+    return res;
+
+overrange:
+    LATA |= currentSourcePinMask; // turn off current-source
+    IO_RA4_LAT = 1; // Turn on discharge mosfet    
+    stopTimer();
+    PIR4bits.TMR1IF = 0; // Clear timer overflow, just in case
+    INTERRUPT_GlobalInterruptEnable();
+    res.overRange = true;
+    waitForDischarge();
+    return res;
+}
+
 
 // Sample "burstLenght" times and put sum in firstSum
 // Then sample "burstLenght" times and put sum in secondSum
-// NOP instructions are for timing, each sample should be equally spaced with 58 instructions between
+// NOP instructions are for timing, each sample should be equally spaced with 59 instructions between
 struct doubleSampleData sampleSlope(uint8_t burstLength, uint8_t currentSourcePinMask)
 {
     stopTimer();
@@ -323,8 +373,7 @@ struct doubleSampleData sampleSlope(uint8_t burstLength, uint8_t currentSourcePi
     __delay_us(2);
     ADCON0bits.GO = 1; //Start conversion
     
-    //startTimer();
-    _nop(); _nop();
+    startTimer();
     if(burstLength > 0)
     {
         uint8_t x = burstLength;
@@ -346,7 +395,7 @@ struct doubleSampleData sampleSlope(uint8_t burstLength, uint8_t currentSourcePi
     _nop();
     _nop();
     waitForAdcAndRestart();
-    startTimer();
+    stopTimer();
     sample = readAdc();
     if(ADSTATbits.UTHR) // Was greater than upper threshold ?if(sample == 0x0fff)
         goto overrange;
@@ -371,8 +420,6 @@ struct doubleSampleData sampleSlope(uint8_t burstLength, uint8_t currentSourcePi
     }
     _nop();
     waitForAdc();
-    _nop();
-    stopTimer();
     sample = readAdc();
     if(ADSTATbits.UTHR) // Was greater than upper threshold ?if(sample == 0x0fff)
         goto overrange;
@@ -385,6 +432,7 @@ struct doubleSampleData sampleSlope(uint8_t burstLength, uint8_t currentSourcePi
     res.firstSum = firstSum;
     res.secondSum = secondSum;
     res.instructionsDelta = TMR1_ReadTimer() - 2;
+    waitForDischarge();
     return res;
 overrange:
     LATA |= currentSourcePinMask; // turn off current-source
@@ -392,5 +440,7 @@ overrange:
     stopTimer();
     INTERRUPT_GlobalInterruptEnable();
     res.overRange = true;
+    waitForDischarge();
     return res;
 }
+
