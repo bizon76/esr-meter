@@ -80,7 +80,7 @@ void fooify()
         {
             if(rangeIndex > 0)
             {
-                setSevenSegDots(2);
+                //setSevenSegDots(2);
                 // go back one range, this one overflowed for some reason
                 rangeIndex--;
                 range = getRangeByIndex(rangeIndex);
@@ -116,7 +116,8 @@ void fooify()
         range = nextRange;
         rangeIndex = nextRange.index;
     }
-    //clearDisplay();
+    clearDisplay();
+    setSevenSegDots(4);
     displayHex(range.index);
 }
 

@@ -365,11 +365,10 @@ struct doubleSampleData sampleSlope(uint8_t burstLength, uint8_t currentSourcePi
     burstLength --;
     uint16_t sample;
     struct doubleSampleData res = {0};
-    int24_t firstSum, secondSum;
+    int24_t firstSum = 0, secondSum = 0;
+    INTERRUPT_GlobalInterruptDisable();
     IO_RA4_LAT = 0; // Turn off discharge mosfet
     LATA &= ~currentSourcePinMask; // turn on current-source
-
-    INTERRUPT_GlobalInterruptDisable();
     __delay_us(2);
     ADCON0bits.GO = 1; //Start conversion
     
