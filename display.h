@@ -27,6 +27,7 @@ void clearDisplay(void);
 
 void displayHex(uint16_t value);
 
+void displayCapacitance(double value);
 
 #ifdef	__cplusplus
 }

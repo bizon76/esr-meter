@@ -67,14 +67,14 @@ const uint8_t letterTable[] = {
     0b10000000, //K *
     0b10000000, //L *
     0b10000000, //M *
-    0b10000000, //N *
+    0b01010100, //N
     0b01011100, //O
     0b01110011, //P
     0b10000000, //Q *
-    0b01010000, //R *
+    0b01010000, //R
     0b01101101, //S
     0b01111000, //T
-    0b10000000, //U *
+    0b00011100, //U
     0b10000000, //V *
     0b10000000, //W *
     0b10000000, //X *
@@ -218,6 +218,85 @@ void displayDecimal(int16_t value, uint8_t decimalPointPos)
         }
         sevenSegData[i] = sevenSeg;
         value /= 10;
+    }
+}
+
+// value in uF
+void displayCapacitance(double value) 
+{
+    if(value < 0)
+        value = 0; 
+    char unit = ' ';
+    uint8_t decimalPointPos;
+    uint16_t number;
+    if(value < 1)
+    {
+        number = (uint16_t)(value * 1000);
+        unit = 'N';
+        decimalPointPos = 4;
+    }
+    else if(value >= 1 && value < 10)
+    {
+        number = (uint16_t)(value * 100);
+        unit = 'U';
+        decimalPointPos = 0;
+    }
+    else if(value >= 10 && value < 100)
+    {
+        number = (uint16_t)(value * 10);
+        unit = 'U';
+        decimalPointPos = 1;
+    }
+    else if(value >= 100 && value < 1000)
+    {
+        number = (uint16_t)value;
+        unit = 'U';
+        decimalPointPos = 4;
+    }
+    else if(value >= 1000 && value < 10000)
+    {
+        number = (uint16_t)(value / 10);
+        unit = 'M';
+        decimalPointPos = 0;
+    }
+    else if(value >= 10000 && value < 100000)
+    {
+        number = (uint16_t)(value / 100);
+        unit = 'M';
+        decimalPointPos = 1;
+    }
+    else // over range
+    {
+        sevenSegDots = 0;
+        setSevenSegData(0, 0, digitTable[0] | 0x80, digitTable[0xf] | 0x80);
+        return;
+    }
+
+    for (int i = 2; i >= 0; i--)
+    {
+        int digit = (int)(number % 10);
+        uint8_t sevenSeg = digitTo7Seg(digit);
+        if (i < decimalPointPos && number == 0)
+        {
+            sevenSeg = 0;
+        }
+        if (i == decimalPointPos)
+        {
+            sevenSeg |= 0x80; // Add decimal point
+        }
+        sevenSegData[i] = sevenSeg;
+        number /= 10;
+    }
+    
+    if(unit == 'M')
+    {
+        sevenSegDots = 4;
+        sevenSegData[3] = 0;
+    }
+    else
+    {
+        sevenSegDots = 0;
+        sevenSegData[3] = charToSevenSeg(unit);
     }
 }
 

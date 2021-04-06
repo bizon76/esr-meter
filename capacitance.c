@@ -72,10 +72,10 @@ void fooify()
 {
     int8_t rangeIndex = 0;
     struct capRange range = getRangeByIndex(rangeIndex);
-    
+    struct doubleSampleData data;
     while(true)
     {
-        struct doubleSampleData data = measureRange(range, 1);
+        data = measureRange(range, 1);
         if(data.overRange)
         {
             if(rangeIndex > 0)
@@ -116,9 +116,23 @@ void fooify()
         range = nextRange;
         rangeIndex = nextRange.index;
     }
-    clearDisplay();
-    setSevenSegDots(4);
-    displayHex(range.index);
+    //clearDisplay();
+    //setSevenSegDots(4);
+    //displayHex(range.index);
+    
+    // Do the real measurement, with more averaging this time
+    data = measureRange(range, 16);
+    
+    double diff = (double)(data.secondSum - data.firstSum);
+    // 59 cycles per sample, 8 cycles per us
+    double dT_us = 59.0 * range.burstSpacing / 8.0;
+    double I = range.useLowCurrent ? 0.0025 : 0.05;
+    
+    // 1000 V/mV, 16x amplification, 256 total samples
+    double dV = diff / 1000.0 / 16.0 / 256.0;
+    double C = I / (dV / dT_us);
+
+    displayCapacitance(C);
 }
 
 void measureCapacitance(void)

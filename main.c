@@ -311,11 +311,33 @@ void main(void)
         }
     }
     
+    
+    
+    /*while(true) 
+    {
+        displayCapacitance(0.01);
+        __delay_ms(1000);
+        displayCapacitance(0.1);
+        __delay_ms(1000);
+        displayCapacitance(1);
+        __delay_ms(1000);
+        displayCapacitance(10);
+        __delay_ms(1000);
+        displayCapacitance(100);
+        __delay_ms(1000);
+        displayCapacitance(1000);
+        __delay_ms(1000);
+        displayCapacitance(10000);
+        __delay_ms(1000);
+        displayCapacitance(100000);
+        __delay_ms(1000);
+    };*/
+    
     //readEsr();
     //testSignal();
     //burstSampleSum(4);
     //doubleBurstSample(0, 0);
-        INTERRUPT_GlobalInterruptDisable();
+    INTERRUPT_GlobalInterruptDisable();
 
     
     __asm("MOVLB 0x4");
