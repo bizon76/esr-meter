@@ -1,0 +1,29 @@
+CLKRMD in PMD0 disabled (should it be?)
+
+Resistance with inductor support
+- Turn on current for a time (1ms is enough for 10mH)
+- Measure with adc X times in succession (maybe 16 times) and avg. 
+- Turn off current, don't turn on discharge mosfet, current should go down faster in reverse schottky diode.
+  3ms should be enough for 10mH
+- Turn on discharge mosfet for maybe 1ms in case someone connected a cap
+- Maybe repeat this a few times and avg?
+
+
+-- Timer1
+The following gives timer value of 2
+    __asm("MOVLB 0x4");
+    __asm("BSF T1CON, 0x0");
+    __asm("NOP");
+    __asm("BCF T1CON, 0x0");
+
+So to measure time of instructions between start and stop of timer, subtract 1 from timer
+
+-- ACLR
+The following takes equivalent time as 7 instructions
+    ADCON2bits.ACLR = 1;
+    while(ADCON2bits.ACLR){};
+
+* The timer keeps running after overflow has occurred
+
+* IMPORTANT:  ADACC-value is not stable while the ADC is running
+
