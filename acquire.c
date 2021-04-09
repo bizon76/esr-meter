@@ -25,47 +25,6 @@ void initAdc(void)
     //Use if(ADSTATbits.UTHR) To check if conversion was greater than upper threshold
 }
 
-int32_t multiSampleAdc2(uint16_t sampleCount)
-{
-    int32_t sum = 0;
-    ADCON0bits.GO = 0; 
-    ADCON0bits.CONT = 0;
-    
-    //INTERRUPT_GlobalInterruptDisable();
-    for(int i=sampleCount; i > 0; i-=16)
-    {
-         // Clear ACC, OV, CNT
-        //ADCON2bits.ACLR = 1;
-        //while(ADCON2bits.ACLR){};
-        
-        ADACCU = 0; 
-        ADACCH = 0; 
-        ADACCL = 0;
-        
-        uint8_t repeat = i > 16 ? 16 : (uint8_t)i;
-        ADCNT = 128-1;//repeat;
-
-        for(uint8_t j=0; j < repeat; j++)
-        {
-            ADCON0bits.GO = 1; 
-
-            while(ADCON0bits.GO){}
-            if(ADSTATbits.UTHR) // Was there a 0xfff reading? 
-                return -1;
-
-        }
-        uint24_t adcSum =  ADCC_GetAccumulatorValue(); //
-        //ADCON0bits.GO = 0; 
-        
-        
-        
-        sum += adcSum;
-        
-    }
-    //INTERRUPT_GlobalInterruptEnable();
-    return sum;
-}
-
 // Takes [sampleCount] readings of ADC in quick succession and returns summed value
 // Exits early with -1 if 0xfff is sampled
 int32_t multiSampleAdc(uint16_t sampleCount)

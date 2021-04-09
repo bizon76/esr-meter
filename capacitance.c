@@ -14,6 +14,7 @@ struct capRange
 
 struct capRange getRangeByIndex(int8_t index)
 {
+    // TODO: Maybe use an array of structs instead
     switch(index)
     {
         case  0: return (struct capRange) { 0,  1,   1, 16, true};
@@ -68,19 +69,22 @@ struct doubleSampleData measureRange(struct capRange range, uint8_t repeats)
     return res;
 }
 
-void fooify()
+void findRangeAndMeasureC()
 {
     int8_t rangeIndex = 0;
     struct capRange range = getRangeByIndex(rangeIndex);
     struct doubleSampleData data;
+    
+    // Try to find a good measurement range...
     while(true)
     {
+        if(anyButton())
+            return;
         data = measureRange(range, 1);
         if(data.overRange)
         {
             if(rangeIndex > 0)
             {
-                //setSevenSegDots(2);
                 // go back one range, this one overflowed for some reason
                 rangeIndex--;
                 range = getRangeByIndex(rangeIndex);
@@ -96,7 +100,7 @@ void fooify()
         if(nextRange.index < 0)
             break;
     
-        // check if next range would is inside measurement bounds
+        // check if next range would be inside measurement bounds
         int32_t diff = data.secondSum - data.firstSum;
         int32_t deltaPerSample = (diff<<8) / range.burstSpacing; // shift up by 8 for more accuracy
         
@@ -106,68 +110,40 @@ void fooify()
         if(range.useLowCurrent && !nextRange.useLowCurrent)
             estimatedMax *= 20; // Current is 20x higher
 
-        estimatedMax >>= 4; // We sampled 16 times, so shift that down to get to 12-bit range
+        estimatedMax >>= 4; // We sampled 16 times, shift that down to get to 12-bit range
         if(estimatedMax > 0xc00) // above 3/4 of max, stop here
-        {
-            //displayHex(estimatedMax);
             break;
-        }
 
         range = nextRange;
         rangeIndex = nextRange.index;
     }
-    //clearDisplay();
-    //setSevenSegDots(4);
-    //displayHex(range.index);
     
-    // Do the real measurement, with more averaging this time
+    // Do the real measurement, with 16x averaging this time
     data = measureRange(range, 16);
     
     double diff = (double)(data.secondSum - data.firstSum);
     // 59 cycles per sample, 8 cycles per us
-    double dT_us = 59.0 * range.burstSpacing / 8.0;
+    double dT_us = (59.0 / 8.0) * range.burstSpacing;
     double I = range.useLowCurrent ? 0.0025 : 0.05;
     
-    // 1000 V/mV, 16x amplification, 256 total samples
+    // 1000 mV/V, 16x amplification, 256 total samples
     double dV = diff / 1000.0 / 16.0 / 256.0;
-    double C = I / (dV / dT_us);
-
-    displayCapacitance(C);
+    if(dV > 0)
+    {
+        double C_uF = I / (dV / dT_us);
+        bool isUncertain = dV < 0.025; // Less than 10% of range used ?
+        displayCapacitance(C_uF, isUncertain);
+    }
+    else
+        displayCapacitance(1e9, false); // overflow
 }
 
 void measureCapacitance(void)
 {
-    while(true)
+    while(!anyButton())
     {
-        fooify();
+        findRangeAndMeasureC();
         __delay_ms(50);
     }
-    return;
-    // C = I / (dV/dT)
-    
-    while(true)
-    {
-        uint8_t pinMask = _LATA_LATA1_MASK;
-
-        struct doubleSampleData data = fastDoubleSample(pinMask, 128);
-        if(data.overRange)
-        {
-            clearDisplay();
-            setSevenSegDots(1); // Used as power-on led
-            break;
-        }
-        
-        // 60 cycles between sample 
-        //int32_t di= data.secondSum - data.firstSum;
-        double diff = (double)(data.secondSum - data.firstSum);
-        double dT_us = 60.0 / 8.0;
-        double I = 0.0025;
-        double dV = diff / 1000.0 / 16.0 / 128.0;
-        double C = I / (dV / dT_us);
-        
-        uint16_t x = (uint16_t)(C * 1000);
-        displayDecimal(x, 0);
-    }
-    
-
+    // C = I / (dV/dT)    
 }

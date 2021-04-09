@@ -222,7 +222,7 @@ void displayDecimal(int16_t value, uint8_t decimalPointPos)
 }
 
 // value in uF
-void displayCapacitance(double value) 
+void displayCapacitance(double value, bool isUncertain) 
 {
     if(value < 0)
         value = 0; 
@@ -276,7 +276,7 @@ void displayCapacitance(double value)
     {
         int digit = (int)(number % 10);
         uint8_t sevenSeg = digitTo7Seg(digit);
-        if (i < decimalPointPos && number == 0)
+        if ((i < decimalPointPos && i < 2) && number == 0)
         {
             sevenSeg = 0;
         }
@@ -298,6 +298,8 @@ void displayCapacitance(double value)
         sevenSegDots = 0;
         sevenSegData[3] = charToSevenSeg(unit);
     }
+    if(isUncertain) sevenSegDots |= 2;
+    
 }
 
 void clearDisplay(void)

@@ -26,10 +26,8 @@ struct doubleSampleData
 
 void initAdc(void);
 int32_t multiSampleAdc(uint16_t sampleCount);
-int32_t multiSampleAdc2(uint16_t sampleCount);
 
 struct doubleSampleData fastDoubleSample(uint8_t currentSourcePinMask, uint16_t sampleCount);
-//struct doubleSampleData doubleBurstSample(uint8_t currentSourcePinMask, uint8_t burstLength);
 int24_t burstSampleSum(uint8_t burstLength);
 struct doubleSampleData sampleSlopeWithDelay(uint8_t burstLength, uint8_t currentSourcePinMask, uint16_t desiredDeltaInstructions);
 struct doubleSampleData sampleSlope(uint8_t burstLength, uint8_t currentSourcePinMask);

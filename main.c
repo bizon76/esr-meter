@@ -64,7 +64,7 @@ uint16_t readBatteryVoltage(double calibrationFactor)
     ADPCH = 0x04;  // Set ADC input to RA4 pin
     __delay_ms(1); // Wait for things to settle
     
-    int32_t adcAvg = multiSampleAdc2(256);
+    int32_t adcAvg = multiSampleAdc(256);
     
     adcAvg *=3; // Compensate for 1/3 voltage divider
     adcAvg = (uint32_t)(adcAvg * calibrationFactor) >> 8;
@@ -136,67 +136,6 @@ void ZeroMeter(void)
     highEsrZeroOffset = (highEsrZero.firstSum >> 1) - 32;
 }
 
-
-void adcc()
-{
-    IO_RA4_LAT = 0; // Turn off discharge mosfet
-    LATA1 = 0; // turn on weak current-source
-
-    __delay_us(2);
-    
-    // Clear ACC, OV, CNT
-    ADCON2bits.ACLR = 1;
-    while(ADCON2bits.ACLR){};
-    
-    ADCON2bits.MD = 1; // Accumulate mode
-    
-    // Set upper threshold = 0xffe
-    ADUTHL = 0xfe;
-    ADUTHH = 0x0f;
-    // Setpoint = 0
-    ADSTPTH = 0x00;
-    ADSTPTL = 0x00;
-    
-    ADCON3bits.ADCALC = 1; // ERR = ADRES - ADSTPT = ADRES
-    ADCON3bits.ADTMD = 0b110; // Stop condition: Stop if ERR > UTH (upper threshold)
-    ADCON3bits.SOI = 1; // Set it to clear GO stop condition reached
-    
-    ADCON0bits.CONT = 1;
-        T1CONbits.T1RD16 = 1;
-    __asm("MOVLB 0x4");
-    __asm("BCF T1CON, 0x0");
-    TMR1H = 0;
-    TMR1L = 0;
-    ADCNT = 128-4;
-    ADCON0bits.GO = 1; 
-    __asm("MOVLB 0x4");
-    __asm("BSF T1CON, 0x0");
-
-    while((int8_t)ADCNT >= 0 && ADCON0bits.GO){} // Wait for conversion counter to reach 128
-    __asm("MOVLB 0x4");
-    __asm("BCF T1CON, 0x0");
-    
-    ADCON0bits.GO = 0; 
-    
-    uint16_t err = ((uint16_t)ADERRH << 8) | ADERRL;
-    
-    if(ADSTATbits.UTHR) // Was greater than upper threshold ?
-        displayHex((ADACCU <<8) | ADACCH );
-    uint8_t lo = TMR1L;
-    uint16_t tim = lo + (TMR1H<<8);
-    displayHex(tim);
-    displayHex(TMR1_ReadTimer());
-
-
-    LATA1 = 1; // turn off weak current-source
-
-    // 1 -> 3d
-    // 2 -> 75
-    // 3 -> ad
-    // 4 -> e5
-    // 0x38 (56) cycles per conversion, 7us
-}
-
 /*
                          Main application
  */
@@ -210,9 +149,6 @@ void main(void)
     
     TMR0_SetInterruptHandler(interruptHandler);
 
-    // When using interrupts, you need to set the Global and Peripheral Interrupt Enable bits
-    // Use the following macros to:
-
     // Enable the Global Interrupts
     INTERRUPT_GlobalInterruptEnable();
 
@@ -225,10 +161,6 @@ void main(void)
     __delay_ms(800);
         
     initAdc();
-    
-    
-        //setSevenSegDots( (readButton1() ? 1 : 0) + (readButton2() ? 2 : 0));
-    
     for(int i=0; i < 12; i++)
     {
         displayDecimal(readBatteryVoltage(_batVoltageCal), 1);
@@ -237,21 +169,11 @@ void main(void)
      
     
     initMeasurements();
-    /*clearDisplay();
-
-    while(1)
-    {
-        //setSevenSegDots( (readButton1() ? 1 : 0) + (readButton2() ? 2 : 0) + 4);
-        setSevenSegDots(1); // Used as power-on led
-        __delay_ms(50);
-    }*/
-    
     
     int mode = 0;
     // Main loop
     while(true)
     {
-        //break;
         if(readRightButton())
         {
             displayText('Z', 'E', 'R', 'O' | 0x80);
@@ -310,80 +232,6 @@ void main(void)
                 break;
         }
     }
-    
-    
-    
-    /*while(true) 
-    {
-        displayCapacitance(0.01);
-        __delay_ms(1000);
-        displayCapacitance(0.1);
-        __delay_ms(1000);
-        displayCapacitance(1);
-        __delay_ms(1000);
-        displayCapacitance(10);
-        __delay_ms(1000);
-        displayCapacitance(100);
-        __delay_ms(1000);
-        displayCapacitance(1000);
-        __delay_ms(1000);
-        displayCapacitance(10000);
-        __delay_ms(1000);
-        displayCapacitance(100000);
-        __delay_ms(1000);
-    };*/
-    
-    //readEsr();
-    //testSignal();
-    //burstSampleSum(4);
-    //doubleBurstSample(0, 0);
-    INTERRUPT_GlobalInterruptDisable();
-
-    
-    __asm("MOVLB 0x4");
-    __asm("BCF T1CON, 0x0");
-    TMR1H = 0;
-    TMR1L = 0;
-    __asm("MOVLB 0x4");
-    __asm("BSF T1CON, 0x0");
-    ADCON2bits.ACLR = 1;
-    __asm("MOVLB 0x4");
-    while(ADCON2bits.ACLR){};
-    __asm("BCF T1CON, 0x0");
-    
-   uint16_t tim = TMR1L + (TMR1H<<8);
-   displayHex(TMR1_ReadTimer());
-
-
-    
-    //adcc();
-   
-   
-    /*while(true) 
-    {
-        for(int j=1; j <= 15; j++)
-        for(int i=0; i < 100; i++)
-        {
-        struct doubleSampleData data = sampleSlope(j*16, _LATA_LATA1_MASK);
-        displayHex(data.instructionsDelta & 0xfff | (j << 12));
-        __delay_ms(15);
-        }
-    }*/
-    uint16_t x = 0;
-    while(true)
-    {
-        for(int i=0; i < 1000; i++)
-        {
-            struct doubleSampleData data = sampleSlopeWithDelay(16, _LATA_LATA1_MASK, 60000);
-            //displayHex(data.instructionsDelta);
-        }
-        displayHex(-(uint16_t)60000);
-        x++;
-    }
-   
-    INTERRUPT_GlobalInterruptEnable();
-    while(true) {};
-    
 }
 /**
  End of File

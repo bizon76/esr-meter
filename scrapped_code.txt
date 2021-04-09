@@ -1,0 +1,223 @@
+    /*while(true) 
+    {
+        displayCapacitance(0.01);
+        __delay_ms(1000);
+        displayCapacitance(0.1);
+        __delay_ms(1000);
+        displayCapacitance(1);
+        __delay_ms(1000);
+        displayCapacitance(10);
+        __delay_ms(1000);
+        displayCapacitance(100);
+        __delay_ms(1000);
+        displayCapacitance(1000);
+        __delay_ms(1000);
+        displayCapacitance(10000);
+        __delay_ms(1000);
+        displayCapacitance(100000);
+        __delay_ms(1000);
+    };*/
+    
+    //readEsr();
+    //testSignal();
+    //burstSampleSum(4);
+    //doubleBurstSample(0, 0);
+
+
+
+    
+    //adcc();
+   
+   
+    /*while(true) 
+    {
+        for(int j=1; j <= 15; j++)
+        for(int i=0; i < 100; i++)
+        {
+        struct doubleSampleData data = sampleSlope(j*16, _LATA_LATA1_MASK);
+        displayHex(data.instructionsDelta & 0xfff | (j << 12));
+        __delay_ms(15);
+        }
+    }*/
+
+
+
+ 
+
+    INTERRUPT_GlobalInterruptDisable();
+
+    
+    __asm("MOVLB 0x4");
+    __asm("BCF T1CON, 0x0");
+    TMR1H = 0;
+    TMR1L = 0;
+    __asm("MOVLB 0x4");
+    __asm("BSF T1CON, 0x0");
+    ADCON2bits.ACLR = 1;
+    __asm("MOVLB 0x4");
+    while(ADCON2bits.ACLR){};
+    __asm("BCF T1CON, 0x0");
+    
+   uint16_t tim = TMR1L + (TMR1H<<8);
+   displayHex(TMR1_ReadTimer());
+
+
+    uint16_t x = 0;
+    while(true)
+    {
+        for(int i=0; i < 1000; i++)
+        {
+            struct doubleSampleData data = sampleSlopeWithDelay(16, _LATA_LATA1_MASK, 60000);
+            //displayHex(data.instructionsDelta);
+        }
+        displayHex(-(uint16_t)60000);
+        x++;
+    }
+   
+    INTERRUPT_GlobalInterruptEnable();
+    while(true) {};
+
+
+
+
+void adcc()
+{
+    IO_RA4_LAT = 0; // Turn off discharge mosfet
+    LATA1 = 0; // turn on weak current-source
+
+    __delay_us(2);
+    
+    // Clear ACC, OV, CNT
+    ADCON2bits.ACLR = 1;
+    while(ADCON2bits.ACLR){};
+    
+    ADCON2bits.MD = 1; // Accumulate mode
+    
+    // Set upper threshold = 0xffe
+    ADUTHL = 0xfe;
+    ADUTHH = 0x0f;
+    // Setpoint = 0
+    ADSTPTH = 0x00;
+    ADSTPTL = 0x00;
+    
+    ADCON3bits.ADCALC = 1; // ERR = ADRES - ADSTPT = ADRES
+    ADCON3bits.ADTMD = 0b110; // Stop condition: Stop if ERR > UTH (upper threshold)
+    ADCON3bits.SOI = 1; // Set it to clear GO stop condition reached
+    
+    ADCON0bits.CONT = 1;
+        T1CONbits.T1RD16 = 1;
+    __asm("MOVLB 0x4");
+    __asm("BCF T1CON, 0x0");
+    TMR1H = 0;
+    TMR1L = 0;
+    ADCNT = 128-4;
+    ADCON0bits.GO = 1; 
+    __asm("MOVLB 0x4");
+    __asm("BSF T1CON, 0x0");
+
+    while((int8_t)ADCNT >= 0 && ADCON0bits.GO){} // Wait for conversion counter to reach 128
+    __asm("MOVLB 0x4");
+    __asm("BCF T1CON, 0x0");
+    
+    ADCON0bits.GO = 0; 
+    
+    uint16_t err = ((uint16_t)ADERRH << 8) | ADERRL;
+    
+    if(ADSTATbits.UTHR) // Was greater than upper threshold ?
+        displayHex((ADACCU <<8) | ADACCH );
+    uint8_t lo = TMR1L;
+    uint16_t tim = lo + (TMR1H<<8);
+    displayHex(tim);
+    displayHex(TMR1_ReadTimer());
+
+
+    LATA1 = 1; // turn off weak current-source
+
+    // 1 -> 3d
+    // 2 -> 75
+    // 3 -> ad
+    // 4 -> e5
+    // 0x38 (56) cycles per conversion, 7us
+}
+
+
+
+int32_t multiSampleAdc2(uint16_t sampleCount)
+{
+    int32_t sum = 0;
+    ADCON0bits.GO = 0; 
+    ADCON0bits.CONT = 0;
+    
+    //INTERRUPT_GlobalInterruptDisable();
+    for(int i=sampleCount; i > 0; i-=16)
+    {
+         // Clear ACC, OV, CNT
+        //ADCON2bits.ACLR = 1;
+        //while(ADCON2bits.ACLR){};
+        
+        ADACCU = 0; 
+        ADACCH = 0; 
+        ADACCL = 0;
+        
+        uint8_t repeat = i > 16 ? 16 : (uint8_t)i;
+        ADCNT = 128-1;//repeat;
+
+        for(uint8_t j=0; j < repeat; j++)
+        {
+            ADCON0bits.GO = 1; 
+
+            while(ADCON0bits.GO){}
+            if(ADSTATbits.UTHR) // Was there a 0xfff reading? 
+                return -1;
+
+        }
+        uint24_t adcSum =  ADCC_GetAccumulatorValue(); //
+        //ADCON0bits.GO = 0; 
+        
+        
+        
+        sum += adcSum;
+        
+    }
+    //INTERRUPT_GlobalInterruptEnable();
+    return sum;
+}
+
+
+   while(true) 
+    {
+        for(int i=1; i <= 5; i++)
+        {
+        _nop();
+        _nop();
+        // 3c diff?
+        // 1 -> 0x70
+        // 2 -> 0xac
+        // 3 -> 0xe8
+        // 4 -> 0x124
+        // 5 -> 0x160
+        
+        
+        doubleBurstSample(_LATA_LATA1_MASK, i);
+        setSevenSegPos(0, digitTo7Seg(i));
+        __delay_ms(1000);
+            
+        }
+    }
+    //timer1ReloadVal
+    uint16_t x = 0;
+    __asm("MOVLB 0x4");
+__asm("BSF T1CON, 0x0");
+    while(true){
+
+        TMR1H = 200;
+        TMR1L = 0;
+        
+
+        while(!PIR4bits.TMR1IF){} // Wait for timer overflow
+        PIR4bits.TMR1IF = 0;
+        
+        x++;
+        displayHex(x);
+   
+   }
