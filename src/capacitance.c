@@ -69,7 +69,7 @@ struct doubleSampleData measureRange(struct capRange range, uint8_t repeats)
     return res;
 }
 
-void findRangeAndMeasureC()
+void findRangeAndMeasureC(void)
 {
     int8_t rangeIndex = 0;
     struct capRange range = getRangeByIndex(rangeIndex);
@@ -130,6 +130,7 @@ void findRangeAndMeasureC()
     double dV = diff / 1000.0 / 16.0 / 256.0;
     if(dV > 0)
     {
+        // C = I / (dV/dT)    
         double C_uF = I / (dV / dT_us);
         bool isUncertain = dV < 0.025; // Less than 10% of range used ?
         displayCapacitance(C_uF, isUncertain);
@@ -145,5 +146,4 @@ void measureCapacitance(void)
         findRangeAndMeasureC();
         __delay_ms(50);
     }
-    // C = I / (dV/dT)    
 }

@@ -15,12 +15,14 @@
         <itemPath>mcc_generated_files/adcc.h</itemPath>
         <itemPath>mcc_generated_files/fvr.h</itemPath>
         <itemPath>mcc_generated_files/tmr1.h</itemPath>
+        <itemPath>mcc_generated_files/tmr2.h</itemPath>
       </logicalFolder>
       <itemPath>display.h</itemPath>
       <itemPath>esr.h</itemPath>
       <itemPath>resistance.h</itemPath>
       <itemPath>acquire.h</itemPath>
       <itemPath>capacitance.h</itemPath>
+      <itemPath>dual.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -40,6 +42,7 @@
         <itemPath>mcc_generated_files/adcc.c</itemPath>
         <itemPath>mcc_generated_files/fvr.c</itemPath>
         <itemPath>mcc_generated_files/tmr1.c</itemPath>
+        <itemPath>mcc_generated_files/tmr2.c</itemPath>
       </logicalFolder>
       <itemPath>main.c</itemPath>
       <itemPath>display.c</itemPath>
@@ -47,6 +50,7 @@
       <itemPath>resistance.c</itemPath>
       <itemPath>acquire.c</itemPath>
       <itemPath>capacitance.c</itemPath>
+      <itemPath>dual.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -231,7 +235,7 @@
         <property key="memories.rww" value="true"/>
         <property key="poweroptions.powerenable" value="true"/>
         <property key="programmerToGoFilePath"
-                  value="C:/Users/Erik/Dropbox/Elektronik/Pic/ESR-Meter.X/debug/default/ESR-Meter_ptg"/>
+                  value="C:/Source/Hardware/esr-meter/src/debug/default/ESR-Meter_ptg"/>
         <property key="programmerToGoImageName" value="ESR-Meter_ptg"/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>

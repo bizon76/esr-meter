@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 void readEsr(int32_t lowOhmsRangeZeroOffset, int32_t highOhmsRangeZeroOffset);
+void findRangeAndMeasureESR(int32_t lowZeroOffset, int32_t highZeroOffset);
 
 #ifdef	__cplusplus
 }

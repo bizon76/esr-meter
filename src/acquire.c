@@ -8,21 +8,12 @@
 #define stopTimer()      __asm("MOVLB 0x4 \n BCF T1CON, 0x0");
 #define waitForTimerOverFlow() __asm("MOVLB 0xE \n BTFSS PIR4, 0x0 \n GOTO $-1");
 
-struct doubleSampleData sampleResult;
-
-
 void initAdc(void)
 {
-    //ADCON2bits.MD = 1; // Accumulate mode
-    
     ADCC_DefineSetPoint(0);
     ADCC_SetUpperThreshold(0xffe);
             
     ADCON3bits.ADCALC = 1; // ERR = ADRES - ADSTPT = ADRES
-    //ADCON3bits.ADTMD = 0b110; // Stop condition: Stop if ERR > UTH (upper threshold)
-    //ADCON3bits.SOI = 1; // Set it to clear GO stop condition reached
-    
-    //Use if(ADSTATbits.UTHR) To check if conversion was greater than upper threshold
 }
 
 // Takes [sampleCount] readings of ADC in quick succession and returns summed value
@@ -153,86 +144,6 @@ struct doubleSampleData fastDoubleSample(uint8_t currentSourcePinMask, uint16_t 
     }
     return res;
 }
-
-/*struct doubleSampleData doubleBurstSampleWithDelay(uint8_t currentSourcePinMask, uint8_t burstLength, uint16_t burstSpacingCycles)
-{
-    int16_t timerVal = -(int16_t)burstSpacingCycles;
-    TMR1H = (timerVal >> 8);
-    TMR1L = timerVal;
-    struct doubleSampleData res = {0};
-
-    INTERRUPT_GlobalInterruptDisable();
-    IO_RA4_LAT = 0; // Turn off discharge mosfet
-    LATA &= ~currentSourcePinMask; // turn on current-source
-    __delay_us(2);
-    startTimer();
-    res.firstSum = burstSampleSum(burstLength);
-    if(res.firstSum < 0)
-    {
-        res.overRange = true;
-    }
-    else
-    {
-        if(TMR1H < 255)
-        {
-            // More than 255 clock cycles left, so we can enable interrupts
-            INTERRUPT_GlobalInterruptEnable();
-
-            while(TMR1H < 255){}
-            // Run the last 256 cycles with interrupts disabled for accurate timing
-            INTERRUPT_GlobalInterruptDisable();
-        }
-
-        waitForTimerOverFlow();
-        res.secondSum = burstSampleSum(burstLength);
-        if(res.secondSum < 0)
-            res.overRange = true;
-    }
-    
-    stopTimer();
-    PIR4bits.TMR1IF = 0; // Clear timer overflow
-    LATA |= currentSourcePinMask; // turn off current-source
-    IO_RA4_LAT = 1; // Turn on discharge mosfet
-    INTERRUPT_GlobalInterruptEnable();
-    waitForDischarge();
-    return res;
-}*/
-
-
-/*struct doubleSampleData doubleBurstSample(uint8_t currentSourcePinMask, uint8_t burstLength)
-{
-    TMR1H = 0;
-    TMR1L = 0;
-    struct doubleSampleData res = {0};
-    int24_t firstSum, secondSum;
-    IO_RA4_LAT = 0; // Turn off discharge mosfet
-    LATA &= ~currentSourcePinMask; // turn on current-source
-
-    INTERRUPT_GlobalInterruptDisable();
-    __delay_us(2);
-    startTimer();
-    if(burstSampleSum(burstLength, &firstSum))
-    {
-        stopTimer();
-        if(!burstSampleSum(burstLength, &secondSum))
-            res.overRange = true;
-    }
-    else
-    {
-        stopTimer();
-        res.overRange = true;
-    }
-
-    LATA |= currentSourcePinMask; // turn off current-source
-    IO_RA4_LAT = 1; // Turn on discharge mosfet
-    INTERRUPT_GlobalInterruptEnable();
-    res.firstSum += firstSum;
-    res.secondSum += secondSum;
-    displayHex((uint16_t)(TMR1H<<8) | TMR1L);
-
-    waitForDischarge();
-    return res;
-}*/
 
 // Samples many times in a row and sums the result. 
 // Does calculations while ADC is running to speed up process. 

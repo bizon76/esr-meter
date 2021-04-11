@@ -14,7 +14,7 @@ extern "C" {
 
 #define readAdc() ((uint16_t)((ADRESH << 8) + ADRESL));
 #define readAdcPrev() ((uint16_t)((ADPREVH << 8) + ADPREVL));
-
+    
 struct doubleSampleData
 {
     int32_t startOffsetSum;
