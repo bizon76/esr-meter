@@ -3,7 +3,7 @@
 #include "esr.h"
 #include "acquire.h"
 
-void findRangeAndMeasureESR(int32_t lowZeroOffset, int32_t highZeroOffset)
+bool findRangeAndMeasureESR(int32_t lowZeroOffset, int32_t highZeroOffset)
 {
     // Find range using 16 samples average
     struct doubleSampleData data = fastDoubleSample(_LATA_LATA1_MASK, 16);
@@ -11,7 +11,7 @@ void findRangeAndMeasureESR(int32_t lowZeroOffset, int32_t highZeroOffset)
     {
         clearDisplay();
         setSevenSegDots(1);
-        return;
+        return false;
     }
     
     bool lowOhmsRange = data.secondSum < (185 << 4); // About 4.5%
@@ -36,7 +36,7 @@ void findRangeAndMeasureESR(int32_t lowZeroOffset, int32_t highZeroOffset)
     {
         clearDisplay();
         setSevenSegDots(1); // Used as power-on led
-        return;
+        return false;
     }
     
     // 7.5 us between samples 
@@ -64,6 +64,7 @@ void findRangeAndMeasureESR(int32_t lowZeroOffset, int32_t highZeroOffset)
      }
 
      displayDecimal((int16_t)val, pointPos);
+     return true;
 }
 
 void readEsr(int32_t lowZeroOffset, int32_t highZeroOffset)

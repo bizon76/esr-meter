@@ -69,7 +69,7 @@ struct doubleSampleData measureRange(struct capRange range, uint8_t repeats)
     return res;
 }
 
-void findRangeAndMeasureC(void)
+bool findRangeAndMeasureC(void)
 {
     int8_t rangeIndex = 0;
     struct capRange range = getRangeByIndex(rangeIndex);
@@ -79,7 +79,7 @@ void findRangeAndMeasureC(void)
     while(true)
     {
         if(anyButton())
-            return;
+            return false;
         data = measureRange(range, 1);
         if(data.overRange)
         {
@@ -94,7 +94,7 @@ void findRangeAndMeasureC(void)
             // Show the "dot" and exit
             clearDisplay();
             setSevenSegDots(1);
-            return;
+            return false;
         }
         struct capRange nextRange = getRangeByIndex(rangeIndex + 1);
         if(nextRange.index < 0)
@@ -137,6 +137,8 @@ void findRangeAndMeasureC(void)
     }
     else
         displayCapacitance(1e9, false); // overflow
+    
+    return true;
 }
 
 void measureCapacitance(void)

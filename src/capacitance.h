@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-void findRangeAndMeasureC(void);
+bool findRangeAndMeasureC(void);
 void measureCapacitance(void);
 
 

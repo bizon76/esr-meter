@@ -5,7 +5,16 @@
 #include "esr.h"
 #include "dual.h"
 
-void dualMeasureCapAndESR(int32_t lowZeroOffset, int32_t highZeroOffset)
+void startTimer()
+{
+    PIR4bits.TMR2IF = 0;
+    TMR2_Start();
+}
+
+
+
+
+void doDualMeasure(int32_t lowZeroOffset, int32_t highZeroOffset)
 {
     while(!anyButton())
     {
@@ -15,36 +24,40 @@ void dualMeasureCapAndESR(int32_t lowZeroOffset, int32_t highZeroOffset)
         {
             clearDisplay();
             setSevenSegDots(1);
-            __delay_ms(50);
-            continue;
+            return;
         }
 
         // Measure capacitance
-        TMR2_Start();
+        startTimer();
         while(!TMR2_HasOverflowOccured())
         {
-            if(anyButton())
+            if(anyButton() | !findRangeAndMeasureC())
             {
                 TMR2_Stop();
                 return;
             }
-            
-            findRangeAndMeasureC();
             __delay_ms(50);
         }
         
         // Measure ESR
-        TMR2_Start();
+        startTimer();
         while(!TMR2_HasOverflowOccured())
         {
-            if(anyButton())
+            if(anyButton() || !findRangeAndMeasureESR(lowZeroOffset, highZeroOffset))
             {
                 TMR2_Stop();
                 return;
             }
-            findRangeAndMeasureESR(lowZeroOffset, highZeroOffset);
             __delay_ms(50);
         }
     }
-    
+}
+
+void dualMeasureCapAndESR(int32_t lowZeroOffset, int32_t highZeroOffset)
+{
+    while(!anyButton())
+    {
+        doDualMeasure(lowZeroOffset, highZeroOffset);
+        __delay_ms(50);
+    }
 }
